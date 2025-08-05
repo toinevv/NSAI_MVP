@@ -13,14 +13,13 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     SECRET_KEY: str = "change-in-production"
     
-    # Database Settings
-    DATABASE_URL: str = "postgresql://user:password@localhost/newsystem_db"
+    # Supabase Settings
     SUPABASE_URL: str = ""
     SUPABASE_SERVICE_KEY: str = ""
+    SUPABASE_ANON_KEY: str = ""  # Added for frontend compatibility
     
     # AI Services
     OPENAI_API_KEY: str = ""
-    OPENAI_ORG_ID: str = ""
     GPT4V_MODEL: str = "gpt-4-vision-preview"
     MAX_TOKENS_PER_REQUEST: int = 4096
     
@@ -28,21 +27,25 @@ class Settings(BaseSettings):
     SUPABASE_STORAGE_BUCKET: str = "recordings"
     MAX_FILE_SIZE_MB: int = 500
     ALLOWED_VIDEO_FORMATS: List[str] = ["webm", "mp4"]
+    CHUNK_SIZE_SECONDS: int = 5  # 5-second chunks per August plan
     
-    # Background Jobs
-    REDIS_URL: str = "redis://localhost:6379"
-    CELERY_BROKER_URL: str = "redis://localhost:6379"
-    CELERY_RESULT_BACKEND: str = "redis://localhost:6379"
+    # CORS Settings
+    CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
     
-    # Security
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
-    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
-    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:5173", "https://app.newsystem.ai"]
+    @property
+    def cors_origins_list(self) -> List[str]:
+        """Convert CORS_ORIGINS string to list"""
+        return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]
     
-    # Business Logic
+    # Business Logic (MVP Focused)
     DEFAULT_ANALYSIS_TIMEOUT_MINUTES: int = 10
     MAX_CONCURRENT_ANALYSES: int = 5
     COST_PER_GPT4V_REQUEST: float = 0.01
+    
+    # Recording Settings (August Plan Specifications)
+    RECORDING_FPS: int = 2  # 2 FPS as per August plan
+    MAX_RECORDING_DURATION_MINUTES: int = 30
+    FRAME_EXTRACTION_INTERVAL: int = 10  # 1 frame per 10 seconds
     
     # Logging
     LOGGING_LEVEL: str = "INFO"
