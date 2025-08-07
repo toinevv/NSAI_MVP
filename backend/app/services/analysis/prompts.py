@@ -1,221 +1,326 @@
 """
-Logistics-Specific Prompts for GPT-4V Analysis
-Focused on email → WMS workflow detection and automation opportunities
-Pragmatic MVP approach targeting warehouse operations
+Unified Prompts for NewSystem.AI Workflow Analysis
+Consolidates all prompt types: original, enhanced discovery, and natural language
 """
 
-# System prompt establishing logistics expertise
-SYSTEM_PROMPT_LOGISTICS = """You are an expert logistics workflow analyst specializing in warehouse operations and automation opportunities.
+# ============================================================================
+# CORE SYSTEM PROMPTS
+# ============================================================================
 
-Your primary focus is identifying repetitive manual tasks that operators perform daily, especially:
-1. Email to WMS (Warehouse Management System) data entry
-2. Copy-paste operations between applications
-3. Manual report generation
-4. Repetitive form filling
-5. Data validation and verification tasks
+SYSTEM_PROMPT_ANALYST = """You are an expert workflow analyst for logistics operations.
+Your task is to analyze screen recordings and identify:
+1. Repetitive workflows that could be automated
+2. Time-consuming manual processes
+3. Data entry patterns between applications
+4. Inefficiencies in current operations
 
-You have deep knowledge of:
-- Common WMS interfaces (SAP, Oracle WMS, Manhattan, Blue Yonder)
-- Email clients (Outlook, Gmail)
-- Spreadsheet applications (Excel, Google Sheets)
-- ERP systems
-- Logistics-specific workflows
+Focus on practical automation opportunities that would save operator time."""
 
-Provide analysis in structured JSON format with specific, actionable insights."""
+SYSTEM_PROMPT_NATURAL = """You are observing a person's computer screen to understand their workflow.
 
-# Main analysis prompt for workflow detection
-WORKFLOW_ANALYSIS_PROMPT = """Analyze these screenshots from a warehouse operator's screen recording to identify automation opportunities.
+Your goal is to describe what they're doing in clear, natural language that anyone can understand.
+Don't force patterns or categories - just describe what you actually see happening.
 
-For each distinct workflow you observe:
+Focus on:
+1. What the person is trying to accomplish
+2. Which applications they're using and why
+3. How data flows between systems
+4. Repetitive actions or patterns
+5. Inefficiencies or opportunities for improvement
 
-1. **Application Detection**: Identify all applications being used (email clients, WMS, Excel, etc.)
+Be conversational, specific, and helpful. Write as if explaining to a colleague."""
 
-2. **Workflow Patterns**: Detect repetitive patterns, especially:
-   - Email → WMS data entry (our PRIMARY focus - operators do this 15x daily)
-   - Copy-paste operations
-   - Manual form filling
-   - Tab switching patterns
-   - Repetitive clicking sequences
+# ============================================================================
+# ORIGINAL ANALYSIS PROMPTS
+# ============================================================================
 
-3. **Time Analysis**: Estimate time spent on each activity based on the timestamps
+FULL_ANALYSIS_PROMPT = """Analyze these screenshots from a warehouse operator's screen recording.
 
-4. **Automation Opportunities**: For each pattern found, assess:
-   - Frequency (how often this likely occurs daily)
-   - Time per occurrence
-   - Automation potential (high/medium/low)
-   - Implementation complexity
-
-5. **Specific Data Points**: Extract:
-   - Types of data being copied (order numbers, quantities, addresses)
-   - Number of fields being filled
-   - Number of clicks/actions per workflow
-
-Return analysis as JSON with this EXACT structure:
+Identify and report in JSON format:
 {
   "workflows_detected": [
     {
-      "type": "email_to_wms" | "excel_reporting" | "data_validation" | "other",
-      "description": "Clear description of the workflow",
-      "applications_involved": ["Application names"],
-      "steps_observed": ["Step 1", "Step 2", ...],
+      "type": "email_to_wms" | "excel_reporting" | "inventory_check" | "order_processing" | "other",
+      "description": "Clear description of what the operator is doing",
+      "applications_involved": ["list", "of", "applications"],
+      "steps_observed": ["step 1", "step 2", ...],
       "estimated_duration_seconds": 120,
-      "data_types_handled": ["order_numbers", "quantities", "addresses"],
-      "repetitive_score": 0.9
+      "data_types_handled": ["order_numbers", "customer_info", "inventory_data"],
+      "repetitive_score": 0.8  // 0-1, how repetitive is this task
     }
   ],
   "automation_opportunities": [
     {
-      "workflow_type": "email_to_wms",
-      "description": "Automate order entry from email to WMS",
+      "workflow_type": "type from above",
+      "description": "What could be automated",
       "frequency_daily": 15,
       "time_per_occurrence_minutes": 2,
       "total_time_saved_daily_minutes": 30,
-      "automation_potential": "high",
-      "implementation_complexity": "low",
-      "specific_recommendation": "Use RPA to read order emails and auto-populate WMS forms"
+      "automation_potential": "high" | "medium" | "low",
+      "implementation_complexity": "low" | "medium" | "high",
+      "specific_recommendation": "Use RPA to automatically transfer data from email to WMS"
     }
   ],
   "time_breakdown": {
     "total_time_analyzed_seconds": 300,
     "email_time_seconds": 60,
-    "wms_time_seconds": 180,
+    "wms_time_seconds": 120,
     "excel_time_seconds": 60,
-    "idle_time_seconds": 0
+    "idle_time_seconds": 60
   },
   "key_insights": [
-    "Operator spends 60% of time on manual data entry",
-    "15 email-to-WMS transfers detected in this session",
-    "Same 5 fields copied repeatedly"
+    "Operator spends 40% of time on manual data entry",
+    "Same information entered in 3 different systems",
+    "Average of 2 minutes per order processing"
   ],
   "confidence_score": 0.85
 }
 
-Focus especially on EMAIL → WMS workflows as these represent the highest ROI for automation in logistics."""
+Focus on finding EMAIL TO WMS workflows - these are our primary target for automation."""
 
-# Prompt for email to WMS specific analysis
-EMAIL_TO_WMS_PROMPT = """Focus specifically on email to WMS data entry workflows in these screenshots.
+QUICK_ANALYSIS_PROMPT = """Quick analysis of these screenshots. Focus on the most obvious workflow pattern.
 
-Identify:
-1. Email client used (Outlook, Gmail, etc.)
-2. WMS system interface
-3. Specific data fields being copied:
-   - Order numbers
-   - Customer information
-   - Product codes/SKUs
-   - Quantities
-   - Delivery addresses
-   - Special instructions
-
-4. Manual steps involved:
-   - Opening email
-   - Selecting/copying text
-   - Switching to WMS
-   - Finding correct form/screen
-   - Pasting/typing data
-   - Validation steps
-
-Return JSON:
+Report in JSON:
 {
-  "email_client": "Outlook",
-  "wms_system": "SAP WMS",
-  "fields_transferred": [
-    {"field_name": "order_number", "copy_method": "manual_copy_paste"},
-    {"field_name": "quantity", "copy_method": "manual_typing"}
+  "primary_workflow": "description",
+  "applications_used": ["app1", "app2"],
+  "automation_potential": "high/medium/low",
+  "time_saved_estimate_minutes": 30,
+  "confidence": 0.8
+}"""
+
+EMAIL_WMS_FOCUSED_PROMPT = """Specifically look for email to WMS data entry workflows in these screenshots.
+
+Check for:
+- Email applications (Outlook, Gmail, etc.)
+- WMS or inventory systems
+- Copy/paste operations between them
+- Order numbers, customer details, product codes
+
+Report any email→WMS workflows found with time estimates."""
+
+# ============================================================================
+# ENHANCED DISCOVERY PROMPTS
+# ============================================================================
+
+DISCOVERY_SYSTEM_PROMPT = """You are discovering workflows in logistics operations.
+Your role is to understand what operators actually do, without forcing patterns.
+Be curious, open-minded, and focus on understanding the real work being done."""
+
+OPEN_DISCOVERY_PROMPT = """Analyze these screenshots without assuming what workflows exist.
+
+Tell me:
+1. What is this person actually doing?
+2. What applications are they using?
+3. What's the flow of information?
+4. What patterns do you observe?
+5. What seems inefficient or repetitive?
+
+Don't categorize into predefined buckets. Describe what you actually see.
+
+Provide your analysis in JSON format with discovered patterns."""
+
+CLUSTERING_DISCOVERY_PROMPT = """Look at these screenshots and identify clusters of similar actions.
+
+Group actions by:
+- Similar applications used
+- Similar data being handled
+- Similar outcomes achieved
+
+Don't force workflows into categories. Let patterns emerge naturally.
+
+Report clusters found and their characteristics in JSON."""
+
+BUSINESS_LOGIC_DISCOVERY = """Focus on understanding the business logic in these screenshots.
+
+Questions to answer:
+- What business process is being executed?
+- What are the decision points?
+- What validations are being performed?
+- What are the inputs and outputs?
+- What rules seem to govern the workflow?
+
+Report the discovered business logic and rules in JSON format."""
+
+# ============================================================================
+# NATURAL LANGUAGE PROMPTS
+# ============================================================================
+
+NATURAL_WORKFLOW_ANALYSIS = """Please analyze these screenshots and tell me what's happening in plain language.
+
+First, provide a natural description:
+1. **Overall Summary**: What is this person doing? What's their goal?
+2. **Step-by-Step Process**: Walk me through what happens in sequence
+3. **Applications Used**: Which programs/websites are they using and for what?
+4. **Patterns Observed**: What do they repeat? What seems inefficient?
+5. **Automation Opportunities**: How could this be improved or automated?
+
+Please respond with JSON in the following format:
+{
+  "natural_description": "Your conversational explanation of what's happening",
+  
+  "workflow_steps": [
+    {
+      "step_number": 1,
+      "action": "Opens Gmail",
+      "application": "Gmail",
+      "purpose": "Check for new orders",
+      "data_involved": ["order numbers", "customer info"],
+      "time_estimate_seconds": 30
+    }
   ],
-  "steps_count": 8,
-  "estimated_time_seconds": 120,
-  "error_prone_steps": ["Manual quantity entry", "Address formatting"],
-  "automation_feasibility": "high",
-  "recommended_solution": "Email parser with WMS API integration"
-}"""
-
-# Prompt for ROI calculation
-ROI_CALCULATION_PROMPT = """Based on the workflows observed, calculate the ROI of automation:
-
-Consider:
-1. Time saved per automation (minutes/hours daily)
-2. Operator hourly rate (~$25/hour for warehouse staff)
-3. Error reduction value (fewer mistakes = less rework)
-4. Implementation cost estimates
-
-Return JSON:
-{
-  "current_state": {
-    "manual_hours_weekly": 10,
-    "manual_cost_weekly": 250,
-    "error_rate_percentage": 5
+  
+  "applications": {
+    "Gmail": {
+      "purpose": "Receiving orders and sending confirmations",
+      "timePercentage": 25,
+      "actions": ["Read emails", "Copy order details", "Mark as processed"]
+    }
   },
-  "automated_state": {
-    "manual_hours_weekly": 2,
-    "manual_cost_weekly": 50,
-    "error_rate_percentage": 1
+  
+  "patterns": [
+    "Copies the same information to multiple systems",
+    "Manually re-types data that could be copy-pasted",
+    "Checks the same order status repeatedly"
+  ],
+  
+  "automation_opportunities": [
+    {
+      "what": "Email order extraction",
+      "how": "Automatically parse order emails and extract structured data",
+      "timeSaved": "5 minutes per order",
+      "complexity": "simple"
+    }
+  ],
+  
+  "metrics": {
+    "totalTimeSeconds": 300,
+    "repetitionsObserved": 5,
+    "applicationsUsed": 3,
+    "potentialTimeSavedDailyHours": 2.5
   },
-  "savings": {
-    "hours_saved_weekly": 8,
-    "cost_saved_weekly": 200,
-    "cost_saved_annually": 10400
-  },
-  "implementation": {
-    "estimated_cost": 5000,
-    "payback_period_months": 6
-  }
-}"""
+  
+  "confidence": 0.85
+}
 
-# Prompt for pattern detection
-PATTERN_DETECTION_PROMPT = """Identify repetitive patterns in these workflow screenshots:
+Key guidelines:
+- Be specific and descriptive
+- Focus on understanding the person's actual work
+- Suggest practical, realistic improvements"""
 
-Look for:
-1. Repeated sequences of actions
-2. Same applications used in cycles
-3. Similar data being processed multiple times
-4. Consistent navigation paths
-5. Repeated form filling patterns
+SIMPLE_NATURAL_ANALYSIS = """Watch these screenshots and explain what the person is doing.
 
-Return patterns ranked by frequency and automation potential."""
+Tell me:
+1. What's happening here? (in plain language)
+2. What applications are they using?
+3. What takes the most time?
+4. How could this be faster/easier?
 
-# Prompt for quick analysis (fewer tokens)
-QUICK_ANALYSIS_PROMPT = """Quick analysis of these warehouse operator screenshots:
+Be conversational and clear. Focus on what matters most.
+
+Please provide your response in JSON format with at least a 'natural_description' field and any other relevant structured data."""
+
+WORKFLOW_FLOW_GENERATION = """Based on these screenshots, create a flow chart of the workflow.
 
 Identify:
-1. Main workflow type (email→WMS, reporting, etc.)
-2. Time-saving opportunity (high/medium/low)
-3. Recommended automation
+1. Starting point (what triggers the workflow?)
+2. Each step in sequence
+3. Applications involved at each step
+4. Data that moves between steps
+5. Decision points (if any)
+6. End result
 
-Return brief JSON:
-{
-  "workflow": "email_to_wms",
-  "automation_potential": "high",
-  "time_saved_daily_minutes": 30,
-  "recommendation": "Implement email-to-WMS automation"
-}"""
+Format as JSON with nodes and edges for visualization:
+- Nodes: Applications, actions, decisions
+- Edges: Flow between steps with labels
 
-# Function to get appropriate prompt based on analysis type
+Keep it simple and clear - show the actual flow of work."""
+
+APPLICATION_USAGE_ANALYSIS = """List all applications, websites, and tools visible in these screenshots.
+
+For each one, tell me:
+1. Application name
+2. What it's being used for
+3. Approximate time spent (as percentage)
+4. Key actions performed
+
+Also note:
+- Which applications are used together
+- How data moves between them
+- Any inefficient switching patterns
+
+Provide your analysis in JSON format with an 'applications' object."""
+
+NATURAL_PATTERN_DETECTION = """Look for patterns in how this person works.
+
+Don't categorize - just describe what you see:
+- What do they do repeatedly?
+- What sequences happen multiple times?
+- Where do they spend extra time?
+- What seems inefficient?
+- What shortcuts or workarounds do they use?
+
+Describe patterns in plain language, like:
+"They copy customer names from emails and paste them into three different systems"
+"They check the same information in multiple places"
+"They switch back and forth between applications frequently" """
+
+# ============================================================================
+# UNIFIED PROMPT GETTER FUNCTIONS
+# ============================================================================
+
 def get_analysis_prompt(analysis_type: str = "full") -> tuple[str, str]:
     """
     Get appropriate prompts for analysis type
+    Supports all prompt types from original, enhanced, and natural
     
     Args:
-        analysis_type: Type of analysis ("full", "email_wms", "roi", "quick")
-    
+        analysis_type: Type of analysis to perform
+        
     Returns:
         Tuple of (system_prompt, user_prompt)
     """
-    prompts_map = {
-        "full": (SYSTEM_PROMPT_LOGISTICS, WORKFLOW_ANALYSIS_PROMPT),
-        "email_wms": (SYSTEM_PROMPT_LOGISTICS, EMAIL_TO_WMS_PROMPT),
-        "roi": (SYSTEM_PROMPT_LOGISTICS, ROI_CALCULATION_PROMPT),
-        "pattern": (SYSTEM_PROMPT_LOGISTICS, PATTERN_DETECTION_PROMPT),
-        "quick": (SYSTEM_PROMPT_LOGISTICS, QUICK_ANALYSIS_PROMPT)
+    # Original prompts
+    original_prompts = {
+        "full": (SYSTEM_PROMPT_ANALYST, FULL_ANALYSIS_PROMPT),
+        "quick": (SYSTEM_PROMPT_ANALYST, QUICK_ANALYSIS_PROMPT),
+        "email_wms": (SYSTEM_PROMPT_ANALYST, EMAIL_WMS_FOCUSED_PROMPT),
     }
     
-    return prompts_map.get(analysis_type, prompts_map["full"])
+    # Enhanced discovery prompts
+    discovery_prompts = {
+        "discovery": (DISCOVERY_SYSTEM_PROMPT, OPEN_DISCOVERY_PROMPT),
+        "clustering": (DISCOVERY_SYSTEM_PROMPT, CLUSTERING_DISCOVERY_PROMPT),
+        "business_logic": (DISCOVERY_SYSTEM_PROMPT, BUSINESS_LOGIC_DISCOVERY),
+    }
+    
+    # Natural language prompts
+    natural_prompts = {
+        "natural": (SYSTEM_PROMPT_NATURAL, NATURAL_WORKFLOW_ANALYSIS),
+        "simple": (SYSTEM_PROMPT_NATURAL, SIMPLE_NATURAL_ANALYSIS),
+        "flow": (SYSTEM_PROMPT_NATURAL, WORKFLOW_FLOW_GENERATION),
+        "applications": (SYSTEM_PROMPT_NATURAL, APPLICATION_USAGE_ANALYSIS),
+        "patterns": (SYSTEM_PROMPT_NATURAL, NATURAL_PATTERN_DETECTION),
+    }
+    
+    # Check all prompt dictionaries
+    if analysis_type in original_prompts:
+        return original_prompts[analysis_type]
+    elif analysis_type in discovery_prompts:
+        return discovery_prompts[analysis_type]
+    elif analysis_type in natural_prompts:
+        return natural_prompts[analysis_type]
+    else:
+        # Default to full analysis
+        return original_prompts["full"]
 
-# Validation prompt for testing
-TEST_PROMPT = """This is a test analysis. Identify any UI elements you can see and confirm the image was received correctly.
 
-Return JSON:
-{
-  "test_successful": true,
-  "elements_detected": ["List of UI elements seen"],
-  "image_quality": "good|medium|poor"
-}"""
+# Legacy function names for backward compatibility
+def get_enhanced_analysis_prompt(analysis_type: str = "discovery") -> tuple[str, str]:
+    """Legacy function - redirects to unified prompt getter"""
+    return get_analysis_prompt(analysis_type)
+
+
+def get_natural_prompt(analysis_type: str = "natural") -> tuple[str, str]:
+    """Legacy function - redirects to unified prompt getter"""
+    return get_analysis_prompt(analysis_type)

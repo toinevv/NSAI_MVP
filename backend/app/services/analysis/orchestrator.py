@@ -13,8 +13,6 @@ import asyncio
 from app.services.analysis.frame_extractor import get_frame_extractor
 from app.services.analysis.gpt4v_client import get_gpt4v_client
 from app.services.analysis.prompts import get_analysis_prompt
-from app.services.analysis.prompts_enhanced import get_enhanced_analysis_prompt
-from app.services.analysis.prompts_natural import get_natural_prompt
 from app.services.analysis.result_parser import get_result_parser
 from app.core.config import settings
 
@@ -97,13 +95,8 @@ class AnalysisOrchestrator:
             logger.info(f"Step 2: Analyzing {len(frames)} frames with GPT-4V using {analysis_type} mode")
             
             # Get appropriate prompts for analysis type
-            # Use natural prompts for better understanding
-            if analysis_type in ["natural", "simple", "flow", "applications", "patterns"]:
-                system_prompt, user_prompt = get_natural_prompt(analysis_type)
-            elif analysis_type in ["discovery", "clustering", "team_comparison", "business_logic"]:
-                system_prompt, user_prompt = get_enhanced_analysis_prompt(analysis_type)
-            else:
-                system_prompt, user_prompt = get_analysis_prompt(analysis_type)
+            # All prompt types are now handled by the unified function
+            system_prompt, user_prompt = get_analysis_prompt(analysis_type)
             
             # Call GPT-4V
             gpt_result = await self.gpt4v_client.analyze_frames(
