@@ -8,7 +8,7 @@ from typing import Optional, Dict, Any, List
 from uuid import UUID, uuid4
 from sqlalchemy import (
     Boolean, Column, DateTime, Integer, String, Text, 
-    DECIMAL, BigInteger, ForeignKey, JSON, ARRAY
+    DECIMAL, BigInteger, ForeignKey, JSON
 )
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy import String as StringType, TypeDecorator
@@ -187,7 +187,7 @@ class AutomationOpportunity(Base):
     opportunity_type = Column(String(100), nullable=False)  # copy_paste_automation, form_filling, etc.
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=False)
-    workflow_steps = Column(ARRAY(Text), default=list)
+    workflow_steps = Column(JSON, default=list)  # Store as JSON array for SQLite compatibility
     current_time_per_occurrence_seconds = Column(Integer)
     occurrences_per_day = Column(Integer, default=1)
     automation_complexity = Column(String(50), default="medium")  # low, medium, high

@@ -87,6 +87,154 @@ async def start_recording(
             detail=f"Failed to start recording session: {str(e)}"
         )
 
+@router.post("/{recording_id}/chunks/signed-url")
+async def get_chunk_signed_url(
+    recording_id: UUID,
+    chunk_index: int,
+    expires_in: int = 3600,
+    db: Session = Depends(get_db),
+    user_id: UUID = Depends(get_current_user_id)
+):
+    """
+    Get a signed URL for direct chunk upload to Supabase Storage
+    Week 1 Day 2: Direct storage optimization
+    """
+    try:
+        # Verify recording session exists and belongs to user
+        recording = db.query(RecordingSession).filter(
+            RecordingSession.id == recording_id,
+            RecordingSession.user_id == user_id
+        ).first()
+        
+        if not recording:
+            raise HTTPException(status_code=404, detail="Recording session not found")
+        
+        if recording.status != "recording":
+            raise HTTPException(status_code=400, detail="Recording session is not active")
+        
+        logger.info(f"Generating signed URL for chunk {chunk_index} of recording {recording_id}")
+        
+        # Get Supabase client and create signed URL
+        supabase_client = get_supabase_client()
+        signed_url_info = supabase_client.create_chunk_signed_url(
+            session_id=recording_id,
+            chunk_index=chunk_index,
+            expires_in=expires_in
+        )
+        
+        if not signed_url_info:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to generate signed upload URL"
+            )
+        
+        return {
+            "signed_url": signed_url_info["signed_url"],
+            "file_path": signed_url_info["file_path"],
+            "expires_at": signed_url_info["expires_at"],
+            "chunk_index": chunk_index,
+            "content_type": signed_url_info["content_type"],
+            "upload_method": "direct",
+            "instructions": {
+                "method": "PUT",
+                "headers": {
+                    "Content-Type": signed_url_info["content_type"]
+                },
+                "body": "Binary chunk data"
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating signed URL: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to generate signed URL: {str(e)}"
+        )
+
+@router.post("/{recording_id}/chunks/verify")
+async def verify_chunk_upload(
+    recording_id: UUID,
+    chunk_index: int,
+    db: Session = Depends(get_db),
+    user_id: UUID = Depends(get_current_user_id)
+):
+    """
+    Verify that a chunk was successfully uploaded via signed URL
+    Week 1 Day 2: Upload verification for direct storage
+    """
+    try:
+        # Verify recording session exists and belongs to user
+        recording = db.query(RecordingSession).filter(
+            RecordingSession.id == recording_id,
+            RecordingSession.user_id == user_id
+        ).first()
+        
+        if not recording:
+            raise HTTPException(status_code=404, detail="Recording session not found")
+        
+        logger.info(f"Verifying chunk {chunk_index} for recording {recording_id}")
+        
+        # Verify chunk in Supabase Storage
+        supabase_client = get_supabase_client()
+        verification_result = await supabase_client.verify_chunk_upload(
+            session_id=recording_id,
+            chunk_index=chunk_index
+        )
+        
+        if verification_result["exists"]:
+            # Update or create video chunk record in database
+            chunk_record = db.query(VideoChunk).filter(
+                VideoChunk.session_id == recording_id,
+                VideoChunk.chunk_index == chunk_index
+            ).first()
+            
+            if chunk_record:
+                # Update existing chunk
+                chunk_record.file_path = verification_result["file_path"]
+                chunk_record.file_size_bytes = verification_result.get("size", 0)
+                chunk_record.upload_status = "completed"
+                chunk_record.uploaded_at = datetime.now(timezone.utc)
+            else:
+                # Create new chunk record
+                chunk_record = VideoChunk(
+                    session_id=recording_id,
+                    chunk_index=chunk_index,
+                    file_path=verification_result["file_path"],
+                    file_size_bytes=verification_result.get("size", 0),
+                    upload_status="completed",
+                    uploaded_at=datetime.now(timezone.utc)
+                )
+                db.add(chunk_record)
+            
+            db.commit()
+            db.refresh(chunk_record)
+            
+            return {
+                "verified": True,
+                "chunk_id": chunk_record.id,
+                "file_path": verification_result["file_path"],
+                "file_size": verification_result.get("size", 0),
+                "public_url": verification_result.get("public_url"),
+                "message": "Chunk verification successful"
+            }
+        else:
+            return {
+                "verified": False,
+                "error": verification_result.get("error", "Chunk not found in storage"),
+                "message": "Chunk verification failed"
+            }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error verifying chunk: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to verify chunk: {str(e)}"
+        )
+
 @router.post("/{recording_id}/chunks", response_model=ChunkUploadResponse)
 async def upload_chunk(
     recording_id: UUID,
@@ -133,20 +281,23 @@ async def upload_chunk(
                 detail=f"Failed to upload chunk: {upload_result['error']}"
             )
         
-        # Create or update video chunk record
+        # Check for existing chunk record to avoid duplicates
         chunk_record = db.query(VideoChunk).filter(
             VideoChunk.session_id == recording_id,
             VideoChunk.chunk_index == chunk_index
         ).first()
         
         if chunk_record:
-            # Update existing chunk
+            # Update existing chunk - this handles retry scenarios
+            logger.info(f"Updating existing chunk record {chunk_index} for session {recording_id}")
             chunk_record.file_path = upload_result["file_path"]
             chunk_record.file_size_bytes = file_size
             chunk_record.upload_status = "completed"
             chunk_record.uploaded_at = datetime.now(timezone.utc)
+            chunk_record.error_message = None  # Clear any previous error
         else:
             # Create new chunk record
+            logger.info(f"Creating new chunk record {chunk_index} for session {recording_id}")
             chunk_record = VideoChunk(
                 session_id=recording_id,
                 chunk_index=chunk_index,
@@ -157,8 +308,27 @@ async def upload_chunk(
             )
             db.add(chunk_record)
         
-        db.commit()
-        db.refresh(chunk_record)
+        try:
+            db.commit()
+            db.refresh(chunk_record)
+        except Exception as commit_error:
+            logger.error(f"Database commit error: {commit_error}")
+            db.rollback()
+            
+            # Try to find the existing record in case of race condition
+            existing_chunk = db.query(VideoChunk).filter(
+                VideoChunk.session_id == recording_id,
+                VideoChunk.chunk_index == chunk_index
+            ).first()
+            
+            if existing_chunk:
+                logger.info(f"Found existing chunk record after commit error - using it")
+                chunk_record = existing_chunk
+            else:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to save chunk record: {str(commit_error)}"
+                )
         
         logger.info(f"Chunk {chunk_index} uploaded successfully for recording {recording_id}")
         
@@ -183,7 +353,7 @@ async def upload_chunk(
 async def complete_recording(
     recording_id: UUID,
     request: RecordingCompleteRequest,
-    background_tasks: BackgroundTasks,
+    background_tasks: BackgroundTasks,  # Will be used in Week 2 for analysis
     db: Session = Depends(get_db),
     user_id: UUID = Depends(get_current_user_id)
 ):

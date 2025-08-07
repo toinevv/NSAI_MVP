@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react'
-import { CheckCircle, XCircle, Clock, Database, Brain, Zap } from 'lucide-react'
+import { CheckCircle, XCircle, Clock, Database, Brain, Zap, Video, BarChart3 } from 'lucide-react'
+import { RecordingControls } from './features/recording/components/RecordingControls'
+import { RecordingsList } from './features/analysis/components/RecordingsList'
+import { ErrorBoundary } from './components/ErrorBoundary'
 
 interface ConnectionStatus {
   name: string
@@ -9,6 +12,8 @@ interface ConnectionStatus {
 }
 
 function App() {
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [currentView, setCurrentView] = useState<'record' | 'analyze'>('record')
   const [connections, setConnections] = useState<ConnectionStatus[]>([
     {
       name: 'Frontend',
@@ -64,6 +69,14 @@ function App() {
     }, 2000)
   }, [])
 
+  // Auto-hide success message after 5 seconds
+  useEffect(() => {
+    if (successMessage) {
+      const timer = setTimeout(() => setSuccessMessage(null), 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [successMessage])
+
   const getStatusIcon = (status: ConnectionStatus['status']) => {
     switch (status) {
       case 'connected':
@@ -103,9 +116,38 @@ function App() {
                 <p className="text-xs text-gray-600">Saving 1,000,000 operator hours monthly</p>
               </div>
             </div>
-            <div className="flex items-center space-x-2">
-              <span className="text-sm text-gray-600">MVP Foundation</span>
-              <div className={`w-3 h-3 rounded-full ${allConnected ? 'bg-green-500' : 'bg-amber-500'}`}></div>
+            
+            {/* Navigation Tabs */}
+            <div className="flex items-center space-x-4">
+              <div className="flex bg-gray-100 rounded-lg p-1">
+                <button
+                  onClick={() => setCurrentView('record')}
+                  className={`flex items-center space-x-2 px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                    currentView === 'record'
+                      ? 'bg-white text-teal-600 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  <Video className="w-4 h-4" />
+                  <span>Record</span>
+                </button>
+                <button
+                  onClick={() => setCurrentView('analyze')}
+                  className={`flex items-center space-x-2 px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                    currentView === 'analyze'
+                      ? 'bg-white text-teal-600 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  <BarChart3 className="w-4 h-4" />
+                  <span>Analyze</span>
+                </button>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-gray-600">Phase 2A</span>
+                <div className={`w-3 h-3 rounded-full ${allConnected ? 'bg-green-500' : 'bg-amber-500'}`}></div>
+              </div>
             </div>
           </div>
         </div>
@@ -113,16 +155,18 @@ function App() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Hero Section */}
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-slate-800 mb-4">
-            Foundation Status Dashboard
-          </h2>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Verifying all systems for our AI-powered screen recording and workflow analysis platform. 
-            Ready to transform logistics operations through intelligent automation discovery.
-          </p>
-        </div>
+        {currentView === 'record' ? (
+          <>
+            {/* Hero Section for Recording */}
+            <div className="text-center mb-12">
+              <h2 className="text-3xl font-bold text-slate-800 mb-4">
+                Workflow Recording Dashboard
+              </h2>
+              <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+                Record your screen at 2 FPS to capture operational workflows. 
+                Our AI will analyze patterns to identify automation opportunities.
+              </p>
+            </div>
 
         {/* Status Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -183,36 +227,83 @@ function App() {
           </div>
         </div>
 
-        {/* Next Steps */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h3 className="text-xl font-semibold text-slate-800 mb-4">Ready for Week 1 Development</h3>
-          <div className="space-y-3">
-            <div className="flex items-center space-x-3">
-              <CheckCircle className="w-5 h-5 text-green-500" />
-              <span className="text-gray-600">Frontend: React + Vite + TypeScript + Tailwind CSS ✓</span>
+            {/* Screen Recording Section */}
+            {/* Success Message */}
+            {successMessage && (
+              <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                <div className="flex items-center space-x-2">
+                  <CheckCircle className="w-5 h-5 text-green-600" />
+                  <p className="text-green-800 font-medium">{successMessage}</p>
+                </div>
+              </div>
+            )}
+
+            {allConnected && (
+              <div className="mb-8">
+                <ErrorBoundary>
+                  <RecordingControls 
+                    onRecordingComplete={(recordingId) => {
+                      console.log('Recording completed:', recordingId)
+                      setSuccessMessage('🎉 Recording saved successfully! You can now analyze it in the Analyze tab.')
+                      // Optionally switch to analyze view
+                      setTimeout(() => setCurrentView('analyze'), 3000)
+                    }}
+                    onError={(error) => {
+                      console.error('Recording error:', error)
+                      // TODO: Show user-friendly error notification
+                    }}
+                  />
+                </ErrorBoundary>
+              </div>
+            )}
+
+            {/* Next Steps */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h3 className="text-xl font-semibold text-slate-800 mb-4">Development Progress</h3>
+              <div className="space-y-3">
+                <div className="flex items-center space-x-3">
+                  <CheckCircle className="w-5 h-5 text-green-500" />
+                  <span className="text-gray-600">Phase 1: Screen Recording with WebM chunks ✓</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <CheckCircle className="w-5 h-5 text-green-500" />
+                  <span className="text-gray-600">Phase 2A Day 1: Frame extraction service ✓</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <CheckCircle className="w-5 h-5 text-green-500" />
+                  <span className="text-gray-600">Phase 2A Day 2-3: GPT-4V integration ✓</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <Clock className="w-5 h-5 text-gray-400" />
+                  <span className="text-gray-600">Phase 2B: Workflow visualization & results</span>
+                </div>
+              </div>
+              
+              {allConnected && (
+                <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <p className="text-green-700 font-medium">
+                    🎉 Phase 2A Complete! GPT-4V integration is ready. Record a workflow, then analyze it to identify automation opportunities!
+                  </p>
+                </div>
+              )}
             </div>
-            <div className="flex items-center space-x-3">
-              <CheckCircle className="w-5 h-5 text-green-500" />
-              <span className="text-gray-600">Backend: FastAPI structure ready ✓</span>
-            </div>
-            <div className="flex items-center space-x-3">
-              <CheckCircle className="w-5 h-5 text-green-500" />
-              <span className="text-gray-600">Database: Supabase schema configured ✓</span>
-            </div>
-            <div className="flex items-center space-x-3">
-              <Clock className="w-5 h-5 text-amber-500" />
-              <span className="text-gray-600">Week 1 Focus: Screen recording + chunked upload</span>
-            </div>
-          </div>
-          
-          {allConnected && (
-            <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-              <p className="text-green-700 font-medium">
-                🚀 All systems operational! Ready to start building screen recording features for logistics workflow analysis.
+          </>
+        ) : (
+          /* Analyze View */
+          <>
+            <div className="text-center mb-12">
+              <h2 className="text-3xl font-bold text-slate-800 mb-4">
+                Workflow Analysis Dashboard
+              </h2>
+              <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+                Select a completed recording to extract frames and prepare for GPT-4V analysis. 
+                Our AI will identify email → WMS patterns and automation opportunities.
               </p>
             </div>
-          )}
-        </div>
+            
+            <RecordingsList />
+          </>
+        )}
       </main>
     </div>
   )

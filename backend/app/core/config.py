@@ -20,11 +20,11 @@ class Settings(BaseSettings):
     
     # AI Services
     OPENAI_API_KEY: str = ""
-    GPT4V_MODEL: str = "gpt-4-vision-preview"
+    GPT4V_MODEL: str = "gpt-4o"  # Updated model that supports vision
     MAX_TOKENS_PER_REQUEST: int = 4096
     
     # Storage
-    SUPABASE_STORAGE_BUCKET: str = "recordings"
+    SUPABASE_STORAGE_BUCKET: str = "recording-sessions"
     MAX_FILE_SIZE_MB: int = 500
     ALLOWED_VIDEO_FORMATS: List[str] = ["webm", "mp4"]
     CHUNK_SIZE_SECONDS: int = 5  # 5-second chunks per August plan

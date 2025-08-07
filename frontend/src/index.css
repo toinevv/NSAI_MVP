@@ -1,9 +1,7 @@
 /* Import DM Sans font - must be first */
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&display=swap');
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
 @layer base {
   :root {
@@ -40,28 +38,56 @@
 @layer components {
   /* NewSystem.AI Button Components */
   .btn-primary {
-    @apply bg-primary-teal text-white px-6 py-3 rounded-lg font-medium hover:bg-primary-teal/90 transition-colors;
+    background-color: #2DD4BF;
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.5rem;
+    font-weight: 500;
+    transition: background-color 0.2s;
+  }
+  
+  .btn-primary:hover {
+    background-color: #26C7B7;
   }
   
   .btn-secondary {
-    @apply bg-primary-dark text-white px-6 py-3 rounded-lg font-medium hover:bg-primary-dark/90 transition-colors;
+    background-color: #03202F;
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.5rem;
+    font-weight: 500;
+    transition: background-color 0.2s;
+  }
+  
+  .btn-secondary:hover {
+    background-color: #042837;
   }
   
   /* Card Components */
   .card {
-    @apply bg-white rounded-lg shadow-sm border border-gray-200 p-6;
+    background-color: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    border: 1px solid #E5E7EB;
+    padding: 1.5rem;
   }
   
   /* Status indicators for automation potential */
   .status-high {
-    @apply bg-automation-high/10 text-automation-high border-automation-high/20;
+    background-color: #F0FDF4;
+    color: #15803D;
+    border-color: #BBF7D0;
   }
   
   .status-medium {
-    @apply bg-automation-medium/10 text-automation-medium border-automation-medium/20;
+    background-color: #FFFBEB;
+    color: #B45309;
+    border-color: #FDE68A;
   }
   
   .status-low {
-    @apply bg-automation-low/10 text-automation-low border-automation-low/20;
+    background-color: #F9FAFB;
+    color: #374151;
+    border-color: #E5E7EB;
   }
 }
