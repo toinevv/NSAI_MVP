@@ -320,7 +320,4 @@ class SessionPersistenceService {
 
 // Export singleton instance
 export const sessionPersistence = new SessionPersistenceService()
-
-// Export types and utilities
-export type { SessionRecoveryInfo, PersistedRecordingState }
 export default sessionPersistence

@@ -7,7 +7,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react'
 import { Play, Square, Pause, Monitor, AlertCircle, CheckCircle, Upload, RotateCcw, RefreshCw, X, Clock } from 'lucide-react'
 import { useScreenRecording } from '../hooks/useScreenRecording'
-import { recordingAPI, RecordingAPIError, isRecordingAPIError } from '../services/recordingAPI'
+import { recordingAPI, isRecordingAPIError } from '../services/recordingAPI'
 import type { UploadProgress, UploadEvent } from '../services/uploadQueue'
 import { sessionPersistence } from '../services/sessionPersistence'
 import type { SessionRecoveryInfo } from '../services/sessionPersistence'
@@ -53,8 +53,8 @@ export const RecordingControls: React.FC<RecordingControlsProps> = ({
   const chunksRef = useRef<Blob[]>([])
   
   // Create stable callback refs to avoid circular dependency
-  const handleChunkReadyRef = useRef<((chunk: Blob, timestamp: number) => Promise<void>) | undefined>()
-  const handleRecordingCompleteRef = useRef<((recordingId: string) => Promise<void>) | undefined>()
+  const handleChunkReadyRef = useRef<((chunk: Blob, timestamp: number) => Promise<void>) | undefined>(undefined)
+  const handleRecordingCompleteRef = useRef<((recordingId: string) => Promise<void>) | undefined>(undefined)
   const screenRecordingRef = useRef<any>(null)
   
   // Initialize screen recording hook with stable callback references
@@ -86,7 +86,16 @@ export const RecordingControls: React.FC<RecordingControlsProps> = ({
       switch (event.type) {
         case 'progress':
           if (event.data.progress) {
-            setUploadProgress(event.data.progress)
+            setUploadProgress({
+              totalChunks: event.data.progress.totalChunks || 0,
+              completedChunks: event.data.progress.completedChunks || 0,
+              failedChunks: event.data.progress.failedChunks || 0,
+              uploadedBytes: event.data.progress.uploadedBytes || 0,
+              totalBytes: event.data.progress.totalBytes || 0,
+              percentage: event.data.progress.percentage || 0,
+              estimatedTimeRemaining: event.data.progress.estimatedTimeRemaining || 0,
+              averageUploadSpeed: event.data.progress.averageUploadSpeed || 0
+            })
           }
           break
         case 'chunk_completed':
@@ -138,7 +147,16 @@ export const RecordingControls: React.FC<RecordingControlsProps> = ({
         setUseDirectStorage(sessionData.settings.useDirectStorage)
         
         // Restore upload progress
-        setUploadProgress(sessionData.uploadProgress)
+        setUploadProgress({
+          totalChunks: sessionData.uploadProgress.totalChunks || 0,
+          completedChunks: sessionData.uploadProgress.completedChunks || 0,
+          failedChunks: sessionData.uploadProgress.failedChunks || 0,
+          uploadedBytes: sessionData.uploadProgress.uploadedBytes || 0,
+          totalBytes: sessionData.uploadProgress.totalBytes || 0,
+          percentage: sessionData.uploadProgress.percentage || 0,
+          estimatedTimeRemaining: (sessionData.uploadProgress as any).estimatedTimeRemaining || 0,
+          averageUploadSpeed: (sessionData.uploadProgress as any).averageUploadSpeed || 0
+        })
         
         console.log(`Successfully recovered session: ${sessionData.sessionId}`)
         setShowRecoveryBanner(false)

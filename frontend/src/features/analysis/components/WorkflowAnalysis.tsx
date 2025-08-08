@@ -78,7 +78,7 @@ export const WorkflowAnalysis: React.FC<WorkflowAnalysisProps> = ({
         ? `/api/v1/analysis/${analysisId}/results`
         : `/api/v1/recordings/${sessionId}/analysis`
       
-      const response = await axios.get(`http://localhost:8000${endpoint}`)
+      const response = await axios.get(`${import.meta.env.VITE_API_URL}${endpoint}`)
       
       if (response.data) {
         // Transform data for our components

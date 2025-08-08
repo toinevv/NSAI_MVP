@@ -204,13 +204,185 @@ Your UI test is successful when:
 
 ---
 
+## 🎯 Week 4 Launch Acceptance Testing
+
+### Manual E2E Testing Requirements
+
+#### Test 1: 2+ Real Recordings with Different Lengths/Apps
+**Status**: ⏳ PENDING USER TESTING
+
+Record the following scenarios and document results:
+
+**Scenario A: Short Email Workflow (2-3 minutes)**
+- [ ] Open Gmail/Outlook
+- [ ] Read and copy order details  
+- [ ] Open WMS/CRM system
+- [ ] Paste and submit data
+- [ ] **Expected**: Analysis identifies email → WMS pattern
+- [ ] **Test Results**: `[USER TO FILL]`
+
+**Scenario B: Longer Multi-App Workflow (5-10 minutes)**
+- [ ] Excel report → multiple system updates
+- [ ] Web research → documentation workflow
+- [ ] Complex data entry across 3+ applications
+- [ ] **Expected**: Analysis handles longer recordings without timeout
+- [ ] **Test Results**: `[USER TO FILL]`
+
+#### Test 2: Concurrency Testing  
+**Status**: ⏳ PENDING USER TESTING
+
+**Scenario**: Open 3-5 browser tabs and start recordings simultaneously
+- [ ] Tab 1: Start recording workflow A
+- [ ] Tab 2: Start recording workflow B  
+- [ ] Tab 3: Start recording workflow C
+- [ ] **Expected**: All recordings complete without interference
+- [ ] **Test Results**: `[USER TO FILL]`
+
+### Critical Performance Checks
+
+#### Recording Performance
+- [ ] **Recording starts within 2 seconds** of clicking Start
+- [ ] **No dropped frames** during screen capture
+- [ ] **Upload completes within 30 seconds** of stopping
+- [ ] **Memory usage stays under 500MB** during recording
+- [ ] **Test Results**: `[USER TO FILL]`
+
+#### Analysis Performance  
+- [ ] **GPT-4V analysis completes within 60 seconds** for 2-minute recording
+- [ ] **Cost stays under $0.50** per analysis (check console logs)
+- [ ] **Results display within 5 seconds** of analysis completion
+- [ ] **No timeout errors** for recordings up to 10 minutes
+- [ ] **Test Results**: `[USER TO FILL]`
+
+### Business Value Validation
+
+#### ROI Calculator Accuracy
+Record a workflow where you can estimate time savings, then check if the system's calculations are reasonable:
+- [ ] **Manual estimate**: ___ hours/week could be saved
+- [ ] **System estimate**: ___ hours/week savings shown
+- [ ] **Accuracy assessment**: Reasonable ✅ / Too high ❌ / Too low ❌  
+- [ ] **Test Results**: `[USER TO FILL]`
+
+#### Automation Opportunity Detection
+- [ ] **Email → WMS pattern detected** when present
+- [ ] **Repetitive actions identified** (copy/paste, data entry)  
+- [ ] **Applications correctly identified** and time allocated
+- [ ] **Confidence scores above 70%** for clear workflows
+- [ ] **Test Results**: `[USER TO FILL]`
+
+---
+
+## 🚨 Critical Issues to Watch For
+
+### Immediate Launch Blockers
+If any of these occur, DO NOT LAUNCH:
+- [ ] **Recording fails to start** consistently
+- [ ] **Analysis costs exceed $2.00** per recording
+- [ ] **Results show completely wrong applications** 
+- [ ] **System crashes** with normal workflows
+- [ ] **Data loss** - recordings disappear
+- [ ] **Issues Found**: `[USER TO FILL]`
+
+### Performance Red Flags  
+If these occur frequently, investigate before launch:
+- [ ] **Upload takes longer than 2 minutes** for 5-minute recording
+- [ ] **Analysis timeout** for recordings under 10 minutes
+- [ ] **Browser becomes unresponsive** during recording
+- [ ] **Memory leaks** - browser tab uses >1GB RAM
+- [ ] **Issues Found**: `[USER TO FILL]`
+
+---
+
+## 📊 Test Environment Verification
+
+### Backend Health Check
+```bash
+# Run these commands and paste results:
+curl http://localhost:8000/health
+
+# Expected: {"status":"healthy","timestamp":"...","services":{...}}
+# Actual Result: [USER TO PASTE]
+```
+
+### Frontend Configuration Check  
+```bash
+# In browser console (F12):
+console.log('API URL:', import.meta.env.VITE_API_URL)
+console.log('Supabase URL:', import.meta.env.VITE_SUPABASE_URL)
+
+# Expected: URLs should point to localhost:8000 and Supabase
+# Actual Result: [USER TO PASTE]
+```
+
+### GPT-4V Integration Test
+```bash
+cd backend
+python test_gpt4v_integration.py
+
+# Expected: Analysis completes with structured insights
+# Actual Result: [USER TO PASTE]
+```
+
+---
+
+## 📝 User Testing Report Template
+
+### Test Session Summary
+**Date**: `[FILL DATE]`  
+**Duration**: `[FILL TOTAL TIME]`  
+**Recordings Created**: `[FILL COUNT]`  
+**Analysis Runs**: `[FILL COUNT]`  
+**Major Issues Found**: `[FILL COUNT]`  
+
+### Detailed Findings
+
+#### What Worked Well ✅
+```
+[USER TO FILL - List features that worked smoothly]
+```
+
+#### Issues Encountered ❌  
+```
+[USER TO FILL - List problems, include steps to reproduce]
+```
+
+#### Performance Notes 📊
+```
+[USER TO FILL - Recording speed, analysis time, resource usage]
+```
+
+#### Business Value Assessment 💰
+```
+[USER TO FILL - Are the insights valuable? Do ROI calculations seem realistic?]
+```
+
+### Launch Recommendation
+- [ ] **READY TO LAUNCH** - All critical tests pass
+- [ ] **MINOR FIXES NEEDED** - Launch possible with known limitations  
+- [ ] **MAJOR ISSUES** - Do not launch, significant work required
+- [ ] **UNABLE TO TEST** - Environment/setup problems
+
+**Overall Assessment**: `[USER TO FILL]`
+
+**Key Concerns**: `[USER TO FILL]`
+
+**Launch Confidence (1-10)**: `[USER TO FILL]`
+
+---
+
 ## 📝 Reporting Issues
 
 If you find bugs:
 1. Note the exact steps to reproduce
-2. Check browser console for errors
-3. Check backend logs
-4. Save the session ID
+2. Check browser console for errors (F12 → Console)
+3. Check backend logs if accessible
+4. Save the session ID from localStorage
 5. Screenshot any error messages
+6. Include browser/OS information
+
+**For immediate blockers**: Test multiple browsers (Chrome, Firefox, Safari) to confirm if issue is browser-specific.
 
 Happy Testing! 🚀
+
+### Post-Testing: Ready to Commit & Deploy 
+Once testing is complete and issues resolved, the system will be ready for Railway deployment and production launch.

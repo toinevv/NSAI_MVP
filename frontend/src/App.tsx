@@ -5,6 +5,7 @@ import { RecordingsList } from './features/analysis/components/RecordingsList'
 import { ResultsPage } from './features/analysis/components/ResultsPage'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { useAnalysisPolling } from './features/analysis/hooks/useAnalysisPolling'
+import { checkHealth } from './lib/api-client'
 
 interface ConnectionStatus {
   name: string
@@ -27,7 +28,7 @@ function App() {
       name: 'Backend API',
       status: 'testing',
       description: 'FastAPI server connection',
-      endpoint: 'http://localhost:8000/health'
+      endpoint: `${import.meta.env.VITE_API_URL}/health`
     },
     {
       name: 'Supabase Database',
@@ -56,10 +57,10 @@ function App() {
   })
 
   useEffect(() => {
-    // Test backend connection
-    fetch('http://localhost:8000/health')
-      .then(res => res.ok ? 'connected' : 'disconnected')
-      .catch(() => 'disconnected')
+    // Test backend connection using centralized health check
+    checkHealth()
+      .then(() => 'connected' as const)
+      .catch(() => 'disconnected' as const)
       .then(status => {
         setConnections(prev => prev.map(conn => 
           conn.name === 'Backend API' ? { ...conn, status } : conn

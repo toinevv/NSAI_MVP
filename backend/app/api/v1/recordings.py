@@ -602,7 +602,7 @@ async def queue_recording_analysis(recording_id: str):
         # Call the analysis start endpoint internally
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                f"http://localhost:8000/api/v1/analysis/{recording_id}/start",
+                f"{settings.API_BASE_URL}/api/v1/analysis/{recording_id}/start",
                 json={"analysis_type": "full"},
                 timeout=30.0
             )

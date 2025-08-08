@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { analysisAPI, getAnalysisErrorMessage } from '../services/analysisAPI'
 
 interface AnalysisStatus {
   id: string
@@ -68,24 +69,12 @@ export const useAnalysisPolling = (options: UseAnalysisPollingOptions = {}) => {
       setError(null)
       console.log(`Starting analysis for recording ${recordingId}`)
 
-      const response = await fetch(`http://localhost:8000/api/v1/analysis/${recordingId}/start`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ analysis_type: 'full' })
-      })
-
-      if (!response.ok) {
-        throw new Error(`Failed to start analysis: ${response.statusText}`)
-      }
-
-      const data = await response.json()
+      const data = await analysisAPI.startAnalysis(recordingId, { analysis_type: 'full' })
       console.log('Analysis started:', data)
 
       return data.id
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to start analysis'
+      const errorMessage = getAnalysisErrorMessage(err)
       setError(errorMessage)
       onError?.(errorMessage)
       return null
@@ -94,13 +83,16 @@ export const useAnalysisPolling = (options: UseAnalysisPollingOptions = {}) => {
 
   const pollAnalysisStatus = useCallback(async (analysisId: string) => {
     try {
-      const response = await fetch(`http://localhost:8000/api/v1/analysis/${analysisId}/status`)
+      const statusResponse = await analysisAPI.getAnalysisStatus(analysisId)
       
-      if (!response.ok) {
-        throw new Error(`Failed to get analysis status: ${response.statusText}`)
+      const status: AnalysisStatus = {
+        id: statusResponse.id,
+        status: statusResponse.status as 'processing' | 'completed' | 'failed',
+        message: `Analysis ${statusResponse.status} - ${statusResponse.current_stage}`,
+        confidence_score: statusResponse.progress_percentage / 100,
+        processing_cost: 0
       }
-
-      const status: AnalysisStatus = await response.json()
+      
       setAnalysisStatus(status)
 
       console.log(`Analysis ${analysisId} status:`, status.status, '-', status.message)
@@ -111,7 +103,7 @@ export const useAnalysisPolling = (options: UseAnalysisPollingOptions = {}) => {
         await getAnalysisResults(analysisId)
         return 'completed'
       } else if (status.status === 'failed') {
-        const errorMessage = `Analysis failed: ${status.message}`
+        const errorMessage = statusResponse.error_message || 'Analysis failed'
         setError(errorMessage)
         onError?.(errorMessage)
         return 'failed'
@@ -119,28 +111,30 @@ export const useAnalysisPolling = (options: UseAnalysisPollingOptions = {}) => {
 
       return 'processing'
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to check analysis status'
+      const errorMessage = getAnalysisErrorMessage(err)
       setError(errorMessage)
       onError?.(errorMessage)
       return 'failed'
     }
   }, [onError])
 
-  const getAnalysisResults = useCallback(async (analysisId: string) => {
+  const getAnalysisResults = useCallback(async (sessionId: string) => {
     try {
-      const response = await fetch(`http://localhost:8000/api/v1/analysis/${analysisId}/results`)
+      const resultsResponse = await analysisAPI.getResults(sessionId)
       
-      if (!response.ok) {
-        throw new Error(`Failed to get analysis results: ${response.statusText}`)
+      const results: AnalysisResult = {
+        analysis_id: sessionId,
+        status: 'completed',
+        message: resultsResponse.message,
+        results: resultsResponse.results
       }
-
-      const results: AnalysisResult = await response.json()
+      
       setAnalysisResults(results)
       console.log('Analysis results retrieved:', results)
       
       onComplete?.(results)
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to get analysis results'
+      const errorMessage = getAnalysisErrorMessage(err)
       setError(errorMessage)
       onError?.(errorMessage)
     }
@@ -177,8 +171,13 @@ export const useAnalysisPolling = (options: UseAnalysisPollingOptions = {}) => {
       if (status === 'processing') {
         // Continue polling
         pollingTimeoutRef.current = setTimeout(poll, pollingInterval)
+      } else if (status === 'completed') {
+        // Analysis complete - get results using the recordingId (sessionId)
+        await getAnalysisResults(recordingId)
+        setIsPolling(false)
+        pollStartTimeRef.current = null
       } else {
-        // Analysis complete or failed
+        // Analysis failed
         setIsPolling(false)
         pollStartTimeRef.current = null
       }
@@ -186,7 +185,7 @@ export const useAnalysisPolling = (options: UseAnalysisPollingOptions = {}) => {
 
     // Start the polling loop
     pollingTimeoutRef.current = setTimeout(poll, pollingInterval)
-  }, [startAnalysis, pollAnalysisStatus, pollingInterval, maxPollingDuration, onError])
+  }, [startAnalysis, pollAnalysisStatus, getAnalysisResults, pollingInterval, maxPollingDuration, onError])
 
   const stopPolling = useCallback(() => {
     if (pollingTimeoutRef.current) {

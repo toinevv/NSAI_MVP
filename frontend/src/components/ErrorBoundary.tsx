@@ -3,7 +3,7 @@
  * Catches React errors and displays user-friendly fallback UI
  */
 
-import React, { Component, ReactNode } from 'react'
+import React, { Component, type ReactNode } from 'react'
 import { AlertCircle, RefreshCw } from 'lucide-react'
 
 interface ErrorBoundaryProps {

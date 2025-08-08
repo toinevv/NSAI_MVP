@@ -9,7 +9,6 @@ import {
   Monitor, 
   Clock, 
   Zap, 
-  AlertCircle,
   TrendingUp,
   CheckCircle,
   ChevronRight,

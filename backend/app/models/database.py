@@ -164,6 +164,13 @@ class AnalysisResult(Base):
     frames_analyzed = Column(Integer, default=0)
     analysis_cost = Column(DECIMAL(10, 4), default=0.00)
     confidence_score = Column(DECIMAL(3, 2), default=0.00)
+    
+    # Summary metrics for direct access (extracted from structured_insights for performance)
+    automation_opportunities_count = Column(Integer, default=0)
+    time_savings_hours_weekly = Column(DECIMAL(8, 2), default=0.00)
+    annual_cost_savings = Column(DECIMAL(12, 2), default=0.00)
+    
+    # Raw data storage
     raw_gpt_response = Column(JSON)
     structured_insights = Column(JSON, default=dict)
     error_message = Column(Text)

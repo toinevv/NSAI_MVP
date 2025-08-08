@@ -201,11 +201,11 @@ export const useScreenRecording = (options: UseScreenRecordingOptions = {}): Use
       const stream = await navigator.mediaDevices.getDisplayMedia({
         video: {
           frameRate: opts.frameRate,
-          cursor: 'always',
           // Let user choose resolution, but provide hints
           width: { ideal: 1920 },
           height: { ideal: 1080 },
-          displaySurface: 'monitor', // Prefer full screen by default
+          // Use type assertion for display media specific constraints
+          ...(({ cursor: 'always', displaySurface: 'monitor' }) as any)
         },
         audio: {
           sampleRate: 44100,
@@ -213,9 +213,7 @@ export const useScreenRecording = (options: UseScreenRecordingOptions = {}): Use
           channelCount: 2,
           echoCancellation: true,
           noiseSuppression: true,
-        },
-        // Prefer screen over window/tab for better UX
-        preferCurrentTab: false
+        }
       })
       
       setState(prev => ({ 

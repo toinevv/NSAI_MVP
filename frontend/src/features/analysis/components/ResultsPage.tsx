@@ -1,37 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { CheckCircle, Clock, AlertCircle, Brain, Zap, TrendingUp, DollarSign, ArrowLeft, RefreshCw } from 'lucide-react'
-
-interface AnalysisResult {
-  analysis_id: string
-  status: string
-  message: string
-  results: {
-    session_id: string
-    status: string
-    recording_info: {
-      title: string
-      duration_seconds: number
-      created_at: string
-    }
-    analysis_info: {
-      frames_analyzed: number
-      confidence_score: number
-      processing_time_seconds: number
-      analysis_cost: number
-    }
-    summary: {
-      total_time_analyzed: number
-      automation_opportunities: number
-      estimated_time_savings: number
-      confidence_score: number
-      annual_cost_savings: number
-    }
-    workflows: any[]
-    automation_opportunities: any[]
-    time_analysis: any
-    insights: any[]
-  } | null
-}
+import { resultsAPI, type ResultsApiResponse, getResultsErrorMessage } from '../../results/services/resultsAPI'
 
 interface ResultsPageProps {
   sessionId: string
@@ -39,7 +8,7 @@ interface ResultsPageProps {
 }
 
 export const ResultsPage: React.FC<ResultsPageProps> = ({ sessionId, onBack }) => {
-  const [results, setResults] = useState<AnalysisResult | null>(null)
+  const [apiResponse, setApiResponse] = useState<ResultsApiResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -48,16 +17,10 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({ sessionId, onBack }) =
       setLoading(true)
       setError(null)
 
-      const response = await fetch(`http://localhost:8000/api/v1/results/${sessionId}`)
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch results: ${response.statusText}`)
-      }
-
-      const data = await response.json()
-      setResults(data)
+      const data = await resultsAPI.getResults(sessionId)
+      setApiResponse(data)
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load results'
+      const errorMessage = getResultsErrorMessage(err)
       setError(errorMessage)
     } finally {
       setLoading(false)
@@ -121,7 +84,7 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({ sessionId, onBack }) =
     )
   }
 
-  if (!results || !results.results) {
+  if (!apiResponse || !apiResponse.results) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -139,8 +102,8 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({ sessionId, onBack }) =
     )
   }
 
-  const { results: analysisResults } = results
-  const { recording_info, analysis_info, summary, workflows, automation_opportunities, insights } = analysisResults
+  const { results: analysisResults } = apiResponse
+  const { recording_info, analysis_info, summary, automation_opportunities, insights } = analysisResults
 
   return (
     <div className="min-h-screen bg-gray-50">

@@ -102,13 +102,18 @@ export interface RecordingResponse {
 }
 
 export class RecordingAPIError extends Error {
+  public status?: number
+  public details?: any
+  
   constructor(
     message: string,
-    public status?: number,
-    public details?: any
+    status?: number,
+    details?: any
   ) {
     super(message)
     this.name = 'RecordingAPIError'
+    this.status = status
+    this.details = details
   }
 }
 

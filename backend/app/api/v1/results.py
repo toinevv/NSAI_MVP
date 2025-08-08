@@ -91,7 +91,7 @@ async def get_complete_results(
                 "automation_opportunities": analysis.automation_opportunities_count or 0,
                 "estimated_time_savings": float(analysis.time_savings_hours_weekly) if analysis.time_savings_hours_weekly else 0.0,
                 "confidence_score": float(analysis.confidence_score) if analysis.confidence_score else 0.0,
-                "annual_cost_savings": float(analysis.cost_savings_annual) if analysis.cost_savings_annual else 0.0
+                "annual_cost_savings": float(analysis.annual_cost_savings) if analysis.annual_cost_savings else 0.0
             },
             "workflows": insights.get("workflows", []),
             "automation_opportunities": insights.get("automation_opportunities", []),

@@ -6,15 +6,15 @@
 
 import React, { useCallback, useMemo } from 'react'
 import ReactFlow, {
-  Node,
-  Edge,
+  type Node,
+  type Edge,
   Background,
   Controls,
   MiniMap,
   useNodesState,
   useEdgesState,
   addEdge,
-  Connection,
+  type Connection,
   ConnectionMode,
   MarkerType,
   Position

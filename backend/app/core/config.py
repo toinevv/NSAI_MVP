@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     ALLOWED_VIDEO_FORMATS: List[str] = ["webm", "mp4"]
     CHUNK_SIZE_SECONDS: int = 5  # 5-second chunks per August plan
     
+    # API Settings
+    API_BASE_URL: str = "http://localhost:8000"  # For internal API calls
+    
     # CORS Settings
     CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
     
