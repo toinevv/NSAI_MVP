@@ -5,12 +5,11 @@
  */
 
 import React, { useState, useEffect } from 'react'
-import { Film, Clock, HardDrive, Calendar, ChevronRight, RefreshCw } from 'lucide-react'
+import { Film, Clock, HardDrive, Calendar, ChevronRight, RefreshCw, Eye, Trash2, Shield, BarChart3 } from 'lucide-react'
 import { AnalysisButton } from './AnalysisButton'
 import { WorkflowAnalysis } from './WorkflowAnalysis'
-import axios from 'axios'
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+import { PrivacyModal } from '../../../components/PrivacyModal'
+import { recordingAPI } from '../../recording/services/recordingAPI'
 
 interface Recording {
   id: string
@@ -20,6 +19,8 @@ interface Recording {
   file_size_bytes: number
   created_at: string
   completed_at?: string
+  privacy_settings?: Record<string, any>
+  has_analysis?: boolean
 }
 
 export const RecordingsList: React.FC = () => {
@@ -29,25 +30,27 @@ export const RecordingsList: React.FC = () => {
   const [selectedRecording, setSelectedRecording] = useState<string | null>(null)
   const [activeAnalysisId, setActiveAnalysisId] = useState<string | null>(null)
   const [showResults, setShowResults] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [privacyModalId, setPrivacyModalId] = useState<string | null>(null)
 
   const fetchRecordings = async () => {
     setLoading(true)
     setError(null)
     
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/v1/recordings`, {
-        params: {
-          status: 'completed',
-          page_size: 10
-        }
+      const response = await recordingAPI.listRecordings({
+        status: 'completed',
+        page_size: 10
       })
       
-      if (response.data?.recordings) {
-        setRecordings(response.data.recordings)
+      if (response?.recordings) {
+        setRecordings(response.recordings)
+      } else {
+        setRecordings([])
       }
     } catch (err: any) {
       console.error('Failed to fetch recordings:', err)
-      setError(err.response?.data?.detail || 'Failed to load recordings')
+      setError(err.message || 'Failed to load recordings')
     } finally {
       setLoading(false)
     }
@@ -56,6 +59,30 @@ export const RecordingsList: React.FC = () => {
   useEffect(() => {
     fetchRecordings()
   }, [])
+
+  const handleDeleteRecording = async (recordingId: string) => {
+    if (!confirm('Are you sure you want to delete this recording? This action cannot be undone.')) {
+      return
+    }
+
+    setDeletingId(recordingId)
+    try {
+      await recordingAPI.deleteRecording(recordingId)
+      setRecordings(prev => prev.filter(r => r.id !== recordingId))
+    } catch (err: any) {
+      console.error('Failed to delete recording:', err)
+      setError(err.message || 'Failed to delete recording')
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
+  const handleViewResults = (recordingId: string) => {
+    // Navigate to results - this would integrate with the main app routing
+    console.log('View results for recording:', recordingId)
+    // For now, just show the analysis button
+    setSelectedRecording(recordingId)
+  }
 
   const formatDuration = (seconds: number): string => {
     const mins = Math.floor(seconds / 60)
@@ -71,6 +98,24 @@ export const RecordingsList: React.FC = () => {
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString)
     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString()
+  }
+
+  const getStatusBadge = (status: string) => {
+    const statusColors = {
+      'completed': 'bg-green-100 text-green-800',
+      'recording': 'bg-blue-100 text-blue-800',
+      'processing': 'bg-yellow-100 text-yellow-800',
+      'failed': 'bg-red-100 text-red-800',
+      'uploading': 'bg-purple-100 text-purple-800'
+    }
+    
+    const colorClass = statusColors[status as keyof typeof statusColors] || 'bg-gray-100 text-gray-800'
+    
+    return (
+      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colorClass}`}>
+        {status}
+      </span>
+    )
   }
 
   if (loading) {
@@ -179,10 +224,55 @@ export const RecordingsList: React.FC = () => {
                       </div>
                     </div>
                     
-                    <div className="mt-2">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        {recording.status}
-                      </span>
+                    <div className="mt-3 flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        {getStatusBadge(recording.status)}
+                        {recording.has_analysis && (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-teal-100 text-teal-800">
+                            <BarChart3 className="w-3 h-3 mr-1" />
+                            Analyzed
+                          </span>
+                        )}
+                      </div>
+                      
+                      {/* Action Buttons */}
+                      <div className="flex items-center space-x-2">
+                        {recording.has_analysis && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleViewResults(recording.id)
+                            }}
+                            className="flex items-center space-x-1 px-3 py-1.5 text-xs bg-teal-100 hover:bg-teal-200 text-teal-800 rounded-lg transition-colors"
+                          >
+                            <Eye className="w-3 h-3" />
+                            <span>View Results</span>
+                          </button>
+                        )}
+                        
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setPrivacyModalId(recording.id)
+                          }}
+                          className="flex items-center space-x-1 px-3 py-1.5 text-xs bg-blue-100 hover:bg-blue-200 text-blue-800 rounded-lg transition-colors"
+                        >
+                          <Shield className="w-3 h-3" />
+                          <span>Privacy</span>
+                        </button>
+                        
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleDeleteRecording(recording.id)
+                          }}
+                          disabled={deletingId === recording.id}
+                          className="flex items-center space-x-1 px-3 py-1.5 text-xs bg-red-100 hover:bg-red-200 text-red-800 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                          <span>{deletingId === recording.id ? 'Deleting...' : 'Delete'}</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -212,21 +302,20 @@ export const RecordingsList: React.FC = () => {
         ))}
       </div>
 
-      {/* MVP Status */}
-      <div className="bg-gradient-to-r from-green-50 to-teal-50 rounded-lg border border-green-200 p-6">
-        <h3 className="font-semibold text-green-900 mb-2">
-          Phase 2A Day 2-3 Complete: GPT-4V Integration Ready! 🎉
-        </h3>
-        <div className="text-sm text-green-800 space-y-1">
-          <p>✅ GPT-4V client with OpenAI integration</p>
-          <p>✅ Logistics-specific prompts for email → WMS</p>
-          <p>✅ Result parsing with ROI calculations</p>
-          <p>✅ Complete analysis pipeline operational</p>
-          <p className="pt-2 text-green-600">
-            🚀 Click "Full Analysis" to identify automation opportunities!
-          </p>
+      {/* Instructions for Testing */}
+      {recordings.length > 0 && (
+        <div className="bg-blue-50 rounded-lg border border-blue-200 p-6">
+          <h3 className="font-semibold text-blue-900 mb-2">
+            📋 Testing Instructions
+          </h3>
+          <div className="text-sm text-blue-800 space-y-1">
+            <p>• Select a recording above to expand analysis options</p>
+            <p>• Click "Full Analysis" for complete GPT-4V workflow analysis</p>
+            <p>• Results will show real automation opportunities (no mock data)</p>
+            <p>• If analysis fails, error messages will be displayed transparently</p>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Analysis Results Modal */}
       {showResults && activeAnalysisId && (
@@ -241,6 +330,17 @@ export const RecordingsList: React.FC = () => {
             />
           </div>
         </div>
+      )}
+
+      {/* Privacy Settings Modal */}
+      {privacyModalId && (
+        <PrivacyModal
+          isOpen={true}
+          onClose={() => setPrivacyModalId(null)}
+          recordingId={privacyModalId}
+          recordingTitle={recordings.find(r => r.id === privacyModalId)?.title || 'Recording'}
+          currentSettings={recordings.find(r => r.id === privacyModalId)?.privacy_settings}
+        />
       )}
     </div>
   )

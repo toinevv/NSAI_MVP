@@ -16,7 +16,7 @@ interface ConnectionStatus {
 
 function App() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
-  const [currentView, setCurrentView] = useState<'record' | 'analyze' | 'results' | 'analyzing'>('record')
+  const [currentView, setCurrentView] = useState<'record' | 'analyze' | 'results' | 'analyzing' | 'upload-complete'>('record')
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
   const [connections, setConnections] = useState<ConnectionStatus[]>([
     {
@@ -57,34 +57,38 @@ function App() {
   })
 
   useEffect(() => {
-    // Test backend connection using centralized health check
-    checkHealth()
-      .then(() => 'connected' as const)
-      .catch(() => 'disconnected' as const)
-      .then(status => {
+    const checkConnections = async () => {
+      // Test backend connection using centralized health check
+      try {
+        await checkHealth()
         setConnections(prev => prev.map(conn => 
-          conn.name === 'Backend API' ? { ...conn, status } : conn
+          conn.name === 'Backend API' ? { ...conn, status: 'connected' } : conn
         ))
-      })
+        
+        // If backend is connected, assume other services are configured
+        // (Real status would come from /health endpoint in production)
+        setConnections(prev => prev.map(conn => {
+          if (conn.name === 'Supabase Database' || conn.name === 'OpenAI GPT-4V') {
+            return { ...conn, status: 'connected' as const }
+          }
+          return conn
+        }))
+      } catch (error) {
+        setConnections(prev => prev.map(conn => 
+          conn.name === 'Backend API' ? { ...conn, status: 'disconnected' } : conn
+        ))
+        
+        // If backend fails, mark dependent services as disconnected
+        setConnections(prev => prev.map(conn => {
+          if (conn.name === 'Supabase Database' || conn.name === 'OpenAI GPT-4V') {
+            return { ...conn, status: 'disconnected' as const }
+          }
+          return conn
+        }))
+      }
+    }
 
-    // Simulate other connection tests
-    setTimeout(() => {
-      setConnections(prev => prev.map(conn => {
-        if (conn.name === 'Supabase Database') {
-          return { ...conn, status: 'connected' as const }
-        }
-        return conn
-      }))
-    }, 1500)
-
-    setTimeout(() => {
-      setConnections(prev => prev.map(conn => {
-        if (conn.name === 'OpenAI GPT-4V') {
-          return { ...conn, status: 'connected' as const }
-        }
-        return conn
-      }))
-    }, 2000)
+    checkConnections()
   }, [])
 
   // Auto-hide success message after 5 seconds
@@ -131,7 +135,7 @@ function App() {
               </div>
               <div>
                 <h1 className="text-xl font-bold text-slate-800">NewSystem.AI</h1>
-                <p className="text-xs text-gray-600">Saving 1,000,000 operator hours monthly</p>
+                <p className="text-xs text-gray-600">Workflow Analysis & Automation Discovery</p>
               </div>
             </div>
             
@@ -181,7 +185,7 @@ function App() {
               </div>
               
               <div className="flex items-center space-x-2">
-                <span className="text-sm text-gray-600">Phase 2A</span>
+                <span className="text-sm text-gray-600">System Status</span>
                 <div className={`w-3 h-3 rounded-full ${allConnected ? 'bg-green-500' : 'bg-amber-500'}`}></div>
               </div>
             </div>
@@ -196,6 +200,50 @@ function App() {
             sessionId={currentSessionId} 
             onBack={() => setCurrentView('analyze')} 
           />
+        ) : currentView === 'upload-complete' ? (
+          /* Upload Complete View */
+          <>
+            <div className="text-center mb-12">
+              <h2 className="text-3xl font-bold text-slate-800 mb-4">
+                Upload Complete!
+              </h2>
+              <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+                Your workflow recording has been successfully uploaded and saved. 
+                Starting AI analysis to identify automation opportunities.
+              </p>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 mb-8 text-center">
+              <div className="flex justify-center mb-6">
+                <div className="p-4 bg-green-100 rounded-full">
+                  <CheckCircle className="w-8 h-8 text-green-600" />
+                </div>
+              </div>
+              
+              <h3 className="text-xl font-semibold text-gray-900 mb-4">
+                Recording Saved Successfully
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+                <div className="flex flex-col items-center">
+                  <div className="w-2 h-2 bg-green-500 rounded-full mb-2"></div>
+                  <p className="text-sm text-gray-600">Recording captured</p>
+                </div>
+                <div className="flex flex-col items-center">
+                  <div className="w-2 h-2 bg-green-500 rounded-full mb-2"></div>
+                  <p className="text-sm text-gray-600">Upload completed</p>
+                </div>
+                <div className="flex flex-col items-center">
+                  <div className="w-2 h-2 bg-amber-500 rounded-full mb-2 animate-pulse"></div>
+                  <p className="text-sm text-gray-600">Preparing analysis</p>
+                </div>
+              </div>
+
+              <p className="text-sm text-gray-500 mt-6">
+                Transitioning to analysis in a moment...
+              </p>
+            </div>
+          </>
         ) : currentView === 'analyzing' ? (
           /* Analyzing View */
           <>
@@ -223,13 +271,55 @@ function App() {
 
               {analysisPolling.error && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-                  <p className="text-red-700">{analysisPolling.error}</p>
-                  <button
-                    onClick={() => analysisPolling.startPolling(currentSessionId!)}
-                    className="mt-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                  >
-                    Retry Analysis
-                  </button>
+                  <div className="flex items-start space-x-3">
+                    <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-red-700 mb-3">{analysisPolling.error}</p>
+                      
+                      {analysisPolling.error.includes('timeout') && (
+                        <div className="bg-red-100 rounded-lg p-3 mb-3">
+                          <p className="text-red-800 text-sm font-medium mb-1">💡 Analysis Timeout</p>
+                          <p className="text-red-700 text-sm">
+                            The analysis took too long. This usually happens with very long recordings. 
+                            Try with a shorter recording (5-10 minutes).
+                          </p>
+                        </div>
+                      )}
+                      
+                      {analysisPolling.error.includes('API') && (
+                        <div className="bg-red-100 rounded-lg p-3 mb-3">
+                          <p className="text-red-800 text-sm font-medium mb-1">🔧 Service Issue</p>
+                          <p className="text-red-700 text-sm">
+                            The AI analysis service is temporarily unavailable. Please try again in a few moments.
+                          </p>
+                        </div>
+                      )}
+                      
+                      {analysisPolling.error.includes('cost') && (
+                        <div className="bg-red-100 rounded-lg p-3 mb-3">
+                          <p className="text-red-800 text-sm font-medium mb-1">💰 Budget Limit</p>
+                          <p className="text-red-700 text-sm">
+                            Analysis cost limit reached. Contact support or try with a shorter recording.
+                          </p>
+                        </div>
+                      )}
+                      
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          onClick={() => analysisPolling.startPolling(currentSessionId!)}
+                          className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                        >
+                          Retry Analysis
+                        </button>
+                        <button
+                          onClick={() => setCurrentView('analyze')}
+                          className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                        >
+                          Back to Recordings
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -345,11 +435,15 @@ function App() {
                     onRecordingComplete={(recordingId) => {
                       console.log('Recording completed:', recordingId)
                       setCurrentSessionId(recordingId)
-                      setSuccessMessage('🎉 Recording saved successfully! Starting AI analysis...')
-                      setCurrentView('analyzing')
+                      setSuccessMessage('✅ Recording uploaded successfully! Starting AI analysis...')
+                      setCurrentView('upload-complete')
                       
-                      // Start analysis polling
-                      analysisPolling.startPolling(recordingId)
+                      // Brief pause to show upload complete state, then start analysis
+                      setTimeout(() => {
+                        setCurrentView('analyzing')
+                        setSuccessMessage('🤖 AI analysis in progress - identifying automation opportunities...')
+                        analysisPolling.startPolling(recordingId)
+                      }, 2000) // 2 second delay to show upload complete
                     }}
                     onError={(error) => {
                       console.error('Recording error:', error)
@@ -360,36 +454,20 @@ function App() {
               </div>
             )}
 
-            {/* Next Steps */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="text-xl font-semibold text-slate-800 mb-4">Development Progress</h3>
-              <div className="space-y-3">
-                <div className="flex items-center space-x-3">
-                  <CheckCircle className="w-5 h-5 text-green-500" />
-                  <span className="text-gray-600">Phase 1: Screen Recording with WebM chunks ✓</span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <CheckCircle className="w-5 h-5 text-green-500" />
-                  <span className="text-gray-600">Phase 2A Day 1: Frame extraction service ✓</span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <CheckCircle className="w-5 h-5 text-green-500" />
-                  <span className="text-gray-600">Phase 2A Day 2-3: GPT-4V integration ✓</span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <Clock className="w-5 h-5 text-gray-400" />
-                  <span className="text-gray-600">Phase 2B: Workflow visualization & results</span>
+            {/* System Status for Testing */}
+            {!allConnected && (
+              <div className="bg-white rounded-lg shadow-sm border border-red-200 p-6">
+                <h3 className="text-xl font-semibold text-red-800 mb-4">⚠️ System Not Ready</h3>
+                <p className="text-red-700 mb-4">
+                  Some services are not connected. Recording and analysis will not work until all services are online.
+                </p>
+                <div className="text-sm text-red-600">
+                  <p>• Check backend server is running on port 8000</p>
+                  <p>• Verify OPENAI_API_KEY is configured</p>
+                  <p>• Ensure Supabase connection is established</p>
                 </div>
               </div>
-              
-              {allConnected && (
-                <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <p className="text-green-700 font-medium">
-                    🎉 Phase 2A Complete! GPT-4V integration is ready. Record a workflow, then analyze it to identify automation opportunities!
-                  </p>
-                </div>
-              )}
-            </div>
+            )}
           </>
         ) : (
           /* Analyze View */

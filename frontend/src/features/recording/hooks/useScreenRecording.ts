@@ -226,7 +226,22 @@ export const useScreenRecording = (options: UseScreenRecordingOptions = {}): Use
       return stream
       
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Permission denied or unsupported'
+      let errorMessage = 'Failed to access screen recording'
+      
+      if (error instanceof Error) {
+        if (error.name === 'NotAllowedError') {
+          errorMessage = '🚫 Screen recording permission was denied. Please click "Share screen" when the browser asks for permission.'
+        } else if (error.name === 'NotSupportedError') {
+          errorMessage = '❌ Screen recording is not supported in this browser. Please use Chrome, Firefox, or Safari.'
+        } else if (error.name === 'NotFoundError') {
+          errorMessage = '📺 No screen available to record. Please ensure you have a display connected.'
+        } else if (error.name === 'AbortError') {
+          errorMessage = '⏹️ Screen recording was cancelled. Click "Start Recording" to try again.'
+        } else {
+          errorMessage = `❌ Screen recording failed: ${error.message}`
+        }
+      }
+      
       setState(prev => ({ 
         ...prev, 
         status: 'error', 
@@ -394,7 +409,18 @@ export const useScreenRecording = (options: UseScreenRecordingOptions = {}): Use
       }
       
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to start recording'
+      let errorMessage = '❌ Failed to start recording'
+      
+      if (error instanceof Error) {
+        if (error.message.includes('MediaRecorder')) {
+          errorMessage = '🎥 Recording setup failed. Your browser may not support the required video format. Try refreshing the page.'
+        } else if (error.message.includes('Invalid media stream')) {
+          errorMessage = '📺 No valid screen capture available. Please grant screen recording permission and try again.'
+        } else {
+          errorMessage = `❌ Recording failed: ${error.message}. Click "Start Recording" to try again.`
+        }
+      }
+      
       setState(prev => ({ 
         ...prev, 
         status: 'error', 

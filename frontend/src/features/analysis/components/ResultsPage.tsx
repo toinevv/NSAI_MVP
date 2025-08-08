@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react'
-import { CheckCircle, Clock, AlertCircle, Brain, Zap, TrendingUp, DollarSign, ArrowLeft, RefreshCw } from 'lucide-react'
+import { CheckCircle, Clock, AlertCircle, Brain, Zap, TrendingUp, DollarSign, ArrowLeft, RefreshCw, BarChart3, FileText } from 'lucide-react'
 import { resultsAPI, type ResultsApiResponse, getResultsErrorMessage } from '../../results/services/resultsAPI'
+import { DynamicWorkflowChart } from './DynamicWorkflowChart'
+import { NaturalAnalysisView } from './NaturalAnalysisView'
 
 interface ResultsPageProps {
   sessionId: string
@@ -11,6 +13,7 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({ sessionId, onBack }) =
   const [apiResponse, setApiResponse] = useState<ResultsApiResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<'overview' | 'workflow' | 'natural'>('overview')
 
   const fetchResults = async () => {
     try {
@@ -222,8 +225,59 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({ sessionId, onBack }) =
           </div>
         </div>
 
-        {/* Analysis Results */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Analysis Tabs */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-8">
+          {/* Tab Headers */}
+          <div className="border-b border-gray-200">
+            <div className="flex space-x-8 px-6">
+              <button
+                onClick={() => setActiveTab('overview')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'overview'
+                    ? 'border-teal-500 text-teal-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center space-x-2">
+                  <BarChart3 className="w-4 h-4" />
+                  <span>Overview</span>
+                </div>
+              </button>
+              
+              <button
+                onClick={() => setActiveTab('workflow')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'workflow'
+                    ? 'border-teal-500 text-teal-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center space-x-2">
+                  <TrendingUp className="w-4 h-4" />
+                  <span>Workflow Chart</span>
+                </div>
+              </button>
+              
+              <button
+                onClick={() => setActiveTab('natural')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'natural'
+                    ? 'border-teal-500 text-teal-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center space-x-2">
+                  <FileText className="w-4 h-4" />
+                  <span>Natural Analysis</span>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          {/* Tab Content */}
+          <div className="p-6">
+            {activeTab === 'overview' && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Automation Opportunities */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200">
             <div className="p-6 border-b border-gray-200">
@@ -266,8 +320,11 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({ sessionId, onBack }) =
               ) : (
                 <div className="text-center py-8 text-gray-500">
                   <Zap className="w-8 h-8 mx-auto mb-2 text-gray-400" />
-                  <p>No specific automation opportunities identified</p>
-                  <p className="text-sm">The analysis will improve with more workflow data</p>
+                  <p>No automation opportunities found in this analysis</p>
+                  <p className="text-sm">The AI analysis completed but did not identify clear patterns for automation</p>
+                  <p className="text-xs text-gray-400 mt-2">
+                    This is real analysis data - not a placeholder message
+                  </p>
                 </div>
               )}
             </div>
@@ -294,11 +351,68 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({ sessionId, onBack }) =
               ) : (
                 <div className="text-center py-8 text-gray-500">
                   <Brain className="w-8 h-8 mx-auto mb-2 text-gray-400" />
-                  <p>Insights are being processed</p>
-                  <p className="text-sm">Check back soon for detailed workflow analysis</p>
+                  <p>No insights generated for this workflow</p>
+                  <p className="text-sm">The AI analysis completed but did not generate actionable insights</p>
+                  <p className="text-xs text-gray-400 mt-2">
+                    This is real analysis data - try a longer recording with more diverse actions
+                  </p>
                 </div>
               )}
             </div>
+          </div>
+              </div>
+            )}
+            
+            {activeTab === 'workflow' && (
+              <div className="min-h-[600px]">
+                {analysisResults.workflows && analysisResults.workflows.length > 0 ? (
+                  <DynamicWorkflowChart
+                    workflowData={analysisResults.workflows}
+                    className="h-full"
+                  />
+                ) : (
+                  <div className="text-center py-16 text-gray-500">
+                    <TrendingUp className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                    <p className="text-lg">No workflow chart data available</p>
+                    <p className="text-sm">The analysis did not generate sufficient workflow steps to create a chart</p>
+                    <p className="text-xs text-gray-400 mt-2">
+                      This is real analysis data - try a longer recording with more defined steps
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {activeTab === 'natural' && (
+              <div>
+                {analysisResults.insights && analysisResults.insights.length > 0 ? (
+                  <NaturalAnalysisView
+                    data={{
+                      naturalDescription: analysisResults.insights.join('\n\n'),
+                      applications: {}, // Would need to map from API response
+                      patterns: [], // Would need to extract from insights
+                      automationOpportunities: analysisResults.automation_opportunities.map((opp: any) => ({
+                        what: opp.workflow_type || 'Workflow Optimization',
+                        how: opp.description || 'Process improvement identified',
+                        timeSaved: `${(opp.time_saved_weekly_hours || 0).toFixed(1)} hours/week`,
+                        complexity: opp.implementation_complexity === 'quick_win' ? 'simple' :
+                                  opp.implementation_complexity === 'strategic' ? 'moderate' : 'complex'
+                      })),
+                      confidence: analysis_info.confidence_score
+                    }}
+                  />
+                ) : (
+                  <div className="text-center py-16 text-gray-500">
+                    <FileText className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                    <p className="text-lg">No natural analysis available</p>
+                    <p className="text-sm">The AI analysis did not generate detailed natural language insights</p>
+                    <p className="text-xs text-gray-400 mt-2">
+                      This is real analysis data - try recording a workflow with more varied actions
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 

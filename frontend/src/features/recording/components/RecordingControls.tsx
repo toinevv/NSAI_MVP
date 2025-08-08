@@ -660,6 +660,37 @@ export const RecordingControls: React.FC<RecordingControlsProps> = ({
         </div>
       )}
       
+      {/* How to Record Tips - Only show when idle and no errors */}
+      {status === 'idle' && !error && (
+        <div className="bg-teal-50 border border-teal-200 rounded-lg p-4 mb-6">
+          <h3 className="text-teal-900 font-medium mb-3 flex items-center">
+            <Monitor className="w-4 h-4 mr-2" />
+            How to Record Your Workflow
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-teal-800">
+            <div>
+              <p className="font-medium mb-1">📋 Before Recording:</p>
+              <ul className="space-y-1 text-xs">
+                <li>• Prepare your workflow (open email, WMS, etc.)</li>
+                <li>• Close unnecessary tabs/applications</li>
+                <li>• Ensure stable internet connection</li>
+              </ul>
+            </div>
+            <div>
+              <p className="font-medium mb-1">🎬 While Recording:</p>
+              <ul className="space-y-1 text-xs">
+                <li>• Perform your actual workflow naturally</li>
+                <li>• Include repetitive tasks (copy/paste, data entry)</li>
+                <li>• Keep recording 2-10 minutes for best analysis</li>
+              </ul>
+            </div>
+          </div>
+          <div className="mt-3 p-2 bg-teal-100 rounded text-xs text-teal-700">
+            <strong>💡 Pro tip:</strong> Record your most time-consuming daily workflow for best automation insights
+          </div>
+        </div>
+      )}
+      
       {/* Simplified Controls */}
       <div className="flex items-center justify-center mb-8">
         {!isRecording ? (
@@ -710,7 +741,47 @@ export const RecordingControls: React.FC<RecordingControlsProps> = ({
           </div>
           
           {error && (
-            <p className="text-red-600 text-sm mb-2">{error}</p>
+            <div>
+              <p className="text-red-600 text-sm mb-3">{error}</p>
+              {error.includes('permission') && (
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={screenRecording.requestPermission}
+                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors"
+                  >
+                    Request Permission Again
+                  </button>
+                  <button
+                    onClick={() => window.location.reload()}
+                    className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-sm rounded-lg transition-colors"
+                  >
+                    Refresh Page
+                  </button>
+                </div>
+              )}
+              {error.includes('browser') && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-2">
+                  <p className="text-blue-800 text-sm font-medium mb-1">💡 Recommended Browsers:</p>
+                  <ul className="text-blue-700 text-xs space-y-1">
+                    <li>• Chrome 72+ (recommended)</li>
+                    <li>• Firefox 66+</li>
+                    <li>• Safari 13+</li>
+                    <li>• Edge 79+</li>
+                  </ul>
+                </div>
+              )}
+              {error.includes('Recording failed') && !error.includes('permission') && (
+                <button
+                  onClick={() => {
+                    // Clear error and try to start recording again
+                    screenRecording.startRecording()
+                  }}
+                  className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg transition-colors"
+                >
+                  Try Recording Again
+                </button>
+              )}
+            </div>
           )}
           
           {uploadErrors.length > 0 && (
