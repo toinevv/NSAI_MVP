@@ -68,14 +68,42 @@ def get_sync_db() -> Session:
     return SessionLocal()
 
 def init_database():
-    """Initialize database tables"""
+    """Initialize database tables with proper error handling"""
     try:
         from app.models.database import Base
-        Base.metadata.create_all(bind=engine)
-        logger.info("Database tables created successfully")
+        
+        logger.info("Starting database initialization...")
+        
+        # Create all tables
+        Base.metadata.create_all(bind=engine, checkfirst=True)
+        
+        # Test that we can actually use the database
+        with SessionLocal() as db:
+            if DATABASE_URL.startswith("sqlite"):
+                db.execute(text("SELECT name FROM sqlite_master WHERE type='table'"))
+            else:
+                db.execute(text("SELECT tablename FROM pg_tables WHERE schemaname='public'"))
+            db.commit()
+        
+        logger.info("Database tables created and verified successfully")
         return True
+        
+    except ImportError as e:
+        logger.error(f"Failed to import database models: {e}")
+        return False
     except Exception as e:
-        logger.error(f"Database initialization failed: {e}")
+        logger.error(f"Database initialization failed: {e}", exc_info=True)
+        
+        # Try to create the database file directory for SQLite
+        if DATABASE_URL.startswith("sqlite"):
+            try:
+                os.makedirs(os.path.dirname(DATABASE_URL.replace("sqlite:///", "")), exist_ok=True)
+                logger.info("Created database directory, retrying initialization...")
+                Base.metadata.create_all(bind=engine, checkfirst=True)
+                return True
+            except Exception as retry_error:
+                logger.error(f"Retry failed: {retry_error}")
+        
         return False
 
 def test_connection() -> bool:

@@ -47,25 +47,33 @@ async def startup_event():
     """Initialize application on startup"""
     logger.info("Starting NewSystem.AI API...")
     
-    # Initialize database
-    if init_database():
-        logger.info("Database initialized successfully")
-    else:
-        logger.error("Database initialization failed")
+    # Initialize database with retry logic
+    max_retries = 3
+    for attempt in range(max_retries):
+        logger.info(f"Database initialization attempt {attempt + 1}/{max_retries}")
+        if init_database():
+            logger.info("Database initialized successfully")
+            break
+        elif attempt < max_retries - 1:
+            logger.warning(f"Database initialization failed, retrying in 2 seconds...")
+            import asyncio
+            await asyncio.sleep(2)
+        else:
+            logger.error("Database initialization failed after all retries")
     
     # Test database connection
     if test_connection():
         logger.info("Database connection test passed")
     else:
-        logger.error("Database connection test failed")
+        logger.error("Database connection test failed - some features may not work")
     
-    # Test Supabase connection
+    # Test Supabase connection (non-critical for startup)
     try:
         supabase_client = get_supabase_client()
         if supabase_client.test_connection():
             logger.info("Supabase connection test passed")
         else:
-            logger.warning("Supabase connection test failed")
+            logger.warning("Supabase connection test failed - storage features may not work")
     except Exception as e:
         logger.warning(f"Supabase client initialization failed: {e}")
     

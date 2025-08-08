@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
-import { CheckCircle, XCircle, Clock, Database, Brain, Zap, Video, BarChart3 } from 'lucide-react'
+import { CheckCircle, XCircle, Clock, Database, Brain, Zap, Video, BarChart3, RefreshCw } from 'lucide-react'
 import { RecordingControls } from './features/recording/components/RecordingControls'
 import { RecordingsList } from './features/analysis/components/RecordingsList'
+import { ResultsPage } from './features/analysis/components/ResultsPage'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { useAnalysisPolling } from './features/analysis/hooks/useAnalysisPolling'
 
 interface ConnectionStatus {
   name: string
@@ -13,7 +15,8 @@ interface ConnectionStatus {
 
 function App() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
-  const [currentView, setCurrentView] = useState<'record' | 'analyze'>('record')
+  const [currentView, setCurrentView] = useState<'record' | 'analyze' | 'results' | 'analyzing'>('record')
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
   const [connections, setConnections] = useState<ConnectionStatus[]>([
     {
       name: 'Frontend',
@@ -37,6 +40,20 @@ function App() {
       description: 'AI analysis engine for workflow patterns'
     }
   ])
+
+  // Analysis polling integration
+  const analysisPolling = useAnalysisPolling({
+    onComplete: (results) => {
+      console.log('Analysis completed:', results)
+      setSuccessMessage('🎉 Analysis complete! Your workflow automation opportunities have been identified.')
+      setCurrentView('results')
+    },
+    onError: (error) => {
+      console.error('Analysis error:', error)
+      setSuccessMessage(null) // Clear any success message
+      // Stay in analyzing view to show the error
+    }
+  })
 
   useEffect(() => {
     // Test backend connection
@@ -142,6 +159,24 @@ function App() {
                   <BarChart3 className="w-4 h-4" />
                   <span>Analyze</span>
                 </button>
+                {currentView === 'analyzing' && (
+                  <button
+                    disabled
+                    className="flex items-center space-x-2 px-4 py-1.5 rounded-md text-sm font-medium bg-white text-amber-600 shadow-sm"
+                  >
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>Analyzing</span>
+                  </button>
+                )}
+                {currentView === 'results' && (
+                  <button
+                    disabled
+                    className="flex items-center space-x-2 px-4 py-1.5 rounded-md text-sm font-medium bg-white text-green-600 shadow-sm"
+                  >
+                    <CheckCircle className="w-4 h-4" />
+                    <span>Results</span>
+                  </button>
+                )}
               </div>
               
               <div className="flex items-center space-x-2">
@@ -155,7 +190,71 @@ function App() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {currentView === 'record' ? (
+        {currentView === 'results' && currentSessionId ? (
+          <ResultsPage 
+            sessionId={currentSessionId} 
+            onBack={() => setCurrentView('analyze')} 
+          />
+        ) : currentView === 'analyzing' ? (
+          /* Analyzing View */
+          <>
+            <div className="text-center mb-12">
+              <h2 className="text-3xl font-bold text-slate-800 mb-4">
+                AI Analysis in Progress
+              </h2>
+              <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+                Our GPT-4V engine is analyzing your workflow recording to identify automation opportunities. 
+                This typically takes 1-2 minutes.
+              </p>
+            </div>
+
+            {/* Analysis Status */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 mb-8 text-center">
+              <div className="flex justify-center mb-6">
+                <div className="p-4 bg-amber-100 rounded-full">
+                  <RefreshCw className="w-8 h-8 text-amber-600 animate-spin" />
+                </div>
+              </div>
+              
+              <h3 className="text-xl font-semibold text-gray-900 mb-4">
+                {analysisPolling.analysisStatus?.message || 'Starting analysis...'}
+              </h3>
+
+              {analysisPolling.error && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                  <p className="text-red-700">{analysisPolling.error}</p>
+                  <button
+                    onClick={() => analysisPolling.startPolling(currentSessionId!)}
+                    className="mt-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                  >
+                    Retry Analysis
+                  </button>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+                <div className="flex flex-col items-center">
+                  <div className="w-2 h-2 bg-teal-500 rounded-full mb-2"></div>
+                  <p className="text-sm text-gray-600">Extracting video frames</p>
+                </div>
+                <div className="flex flex-col items-center">
+                  <div className="w-2 h-2 bg-teal-500 rounded-full mb-2"></div>
+                  <p className="text-sm text-gray-600">AI pattern analysis</p>
+                </div>
+                <div className="flex flex-col items-center">
+                  <div className={`w-2 h-2 rounded-full mb-2 ${
+                    analysisPolling.isAnalysisComplete ? 'bg-teal-500' : 'bg-gray-300'
+                  }`}></div>
+                  <p className="text-sm text-gray-600">Generating insights</p>
+                </div>
+              </div>
+
+              <p className="text-sm text-gray-500 mt-6">
+                You'll be automatically redirected to results when complete
+              </p>
+            </div>
+          </>
+        ) : currentView === 'record' ? (
           <>
             {/* Hero Section for Recording */}
             <div className="text-center mb-12">
@@ -244,9 +343,12 @@ function App() {
                   <RecordingControls 
                     onRecordingComplete={(recordingId) => {
                       console.log('Recording completed:', recordingId)
-                      setSuccessMessage('🎉 Recording saved successfully! You can now analyze it in the Analyze tab.')
-                      // Optionally switch to analyze view
-                      setTimeout(() => setCurrentView('analyze'), 3000)
+                      setCurrentSessionId(recordingId)
+                      setSuccessMessage('🎉 Recording saved successfully! Starting AI analysis...')
+                      setCurrentView('analyzing')
+                      
+                      // Start analysis polling
+                      analysisPolling.startPolling(recordingId)
                     }}
                     onError={(error) => {
                       console.error('Recording error:', error)

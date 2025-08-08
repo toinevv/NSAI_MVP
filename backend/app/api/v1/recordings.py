@@ -22,6 +22,8 @@ from app.schemas.recording import (
 )
 from app.services.supabase_client import get_supabase_client
 from app.core.config import settings
+import asyncio
+import httpx
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -393,18 +395,15 @@ async def complete_recording(
         db.commit()
         db.refresh(recording)
         
-        # Queue analysis task (Week 2 implementation)
-        # For now, just log that analysis would be queued
-        logger.info(f"Recording {recording_id} completed. Analysis pipeline will be implemented in Week 2")
-        
-        # In Week 2, we'll add:
-        # background_tasks.add_task(queue_recording_analysis, recording_id)
+        # Queue analysis task automatically
+        logger.info(f"Recording {recording_id} completed. Queuing analysis...")
+        background_tasks.add_task(queue_recording_analysis, str(recording_id))
         
         return RecordingCompleteResponse(
             id=recording_id,
             status="completed",
-            message="Recording completed successfully",
-            analysis_queued=False,  # Will be True in Week 2
+            message="Recording completed successfully - analysis started",
+            analysis_queued=True,
             estimated_processing_time_minutes=2
         )
         
@@ -591,3 +590,28 @@ async def update_privacy_settings(
             status_code=500,
             detail=f"Failed to update privacy settings: {str(e)}"
         )
+
+async def queue_recording_analysis(recording_id: str):
+    """
+    Background task to queue analysis for completed recording
+    Calls the analysis start endpoint to begin GPT-4V processing
+    """
+    try:
+        logger.info(f"Starting background analysis for recording {recording_id}")
+        
+        # Call the analysis start endpoint internally
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"http://localhost:8000/api/v1/analysis/{recording_id}/start",
+                json={"analysis_type": "full"},
+                timeout=30.0
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                logger.info(f"Analysis queued successfully for recording {recording_id}: {result.get('id')}")
+            else:
+                logger.error(f"Failed to start analysis for recording {recording_id}: {response.status_code} - {response.text}")
+                
+    except Exception as e:
+        logger.error(f"Background analysis task failed for recording {recording_id}: {e}", exc_info=True)
