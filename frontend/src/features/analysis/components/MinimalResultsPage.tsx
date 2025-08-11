@@ -135,34 +135,34 @@ export const MinimalResultsPage: React.FC<MinimalResultsPageProps> = ({ sessionI
       {/* Main Content */}
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
-        {/* ROI Summary - Primary Focus */}
-        <div className="bg-gradient-to-r from-green-50 to-teal-50 rounded-xl border border-green-200 p-8 mb-8 text-center">
+        {/* Analysis Summary - Layer 2 Focus */}
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200 p-8 mb-8 text-center">
           <div className="flex justify-center mb-4">
-            <div className="p-3 bg-green-100 rounded-full">
-              <DollarSign className="w-8 h-8 text-green-600" />
+            <div className="p-3 bg-blue-100 rounded-full">
+              <Brain className="w-8 h-8 text-blue-600" />
             </div>
           </div>
-          <h2 className="text-4xl font-bold text-gray-900 mb-2">
-            {formatCurrency(summary.annual_cost_savings)}
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            Workflow Analysis Complete
           </h2>
-          <p className="text-xl text-gray-700 mb-6">Potential Annual Savings</p>
+          <p className="text-lg text-gray-700 mb-6">AI has processed your workflow recording</p>
           
-          {/* Key Metrics */}
+          {/* Core Analysis Metrics */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-white rounded-lg p-4 shadow-sm">
-              <div className="text-2xl font-bold text-teal-600 mb-1">
-                {summary.estimated_time_savings.toFixed(1)}h
-              </div>
-              <div className="text-sm text-gray-600">Hours saved per week</div>
-            </div>
-            <div className="bg-white rounded-lg p-4 shadow-sm">
-              <div className="text-2xl font-bold text-amber-600 mb-1">
-                {summary.automation_opportunities}
-              </div>
-              <div className="text-sm text-gray-600">Automation opportunities</div>
-            </div>
-            <div className="bg-white rounded-lg p-4 shadow-sm">
               <div className="text-2xl font-bold text-blue-600 mb-1">
+                {analysis_info.frames_analyzed || 0}
+              </div>
+              <div className="text-sm text-gray-600">Frames analyzed</div>
+            </div>
+            <div className="bg-white rounded-lg p-4 shadow-sm">
+              <div className="text-2xl font-bold text-indigo-600 mb-1">
+                {formatDuration(recording_info.duration_seconds)}
+              </div>
+              <div className="text-sm text-gray-600">Recording duration</div>
+            </div>
+            <div className="bg-white rounded-lg p-4 shadow-sm">
+              <div className="text-2xl font-bold text-purple-600 mb-1">
                 {(analysis_info.confidence_score * 100).toFixed(0)}%
               </div>
               <div className="text-sm text-gray-600">Analysis confidence</div>
@@ -220,48 +220,8 @@ export const MinimalResultsPage: React.FC<MinimalResultsPageProps> = ({ sessionI
           </div>
         )}
 
-        {/* Top Opportunities - Simplified */}
-        {automation_opportunities.length > 0 && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 mb-8">
-            <div className="flex items-center space-x-2 mb-6">
-              <Zap className="w-6 h-6 text-amber-600" />
-              <h3 className="text-xl font-semibold text-gray-900">Top Opportunities</h3>
-            </div>
-            
-            <div className="space-y-4">
-              {automation_opportunities.slice(0, 2).map((opp: any, index: number) => (
-                <div key={index} className="border border-gray-200 rounded-lg p-6">
-                  <div className="flex justify-between items-start mb-3">
-                    <h4 className="text-lg font-medium text-gray-900">
-                      {opp.workflow_type || `Opportunity ${index + 1}`}
-                    </h4>
-                    <div className="flex items-center space-x-2">
-                      <TrendingUp className="w-4 h-4 text-green-600" />
-                      <span className="text-green-600 font-medium">
-                        {(opp.time_saved_weekly_hours || 0).toFixed(1)}h/week
-                      </span>
-                    </div>
-                  </div>
-                  <p className="text-gray-600 mb-4">
-                    {opp.description || 'Automation opportunity identified through workflow analysis'}
-                  </p>
-                  <div className="flex justify-between items-center text-sm text-gray-500">
-                    <span>ROI Score: {(opp.roi_score || 0).toFixed(1)}/10</span>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      opp.priority === 'high' 
-                        ? 'bg-red-100 text-red-700'
-                        : opp.priority === 'medium'
-                        ? 'bg-yellow-100 text-yellow-700'
-                        : 'bg-green-100 text-green-700'
-                    }`}>
-                      {opp.priority || 'Medium'} Priority
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        {/* Automation Opportunities - Removed for Layer 2 focus */}
+        {/* Will add back in Layer 3 once analysis is solid */}
 
         {/* Simple Analysis Info */}
         <div className="bg-gray-100 rounded-lg p-6">
