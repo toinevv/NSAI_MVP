@@ -281,8 +281,11 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({ sessionId, onBack }) =
           {/* Automation Opportunities */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200">
             <div className="p-6 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Automation Opportunities</h3>
-              <p className="text-sm text-gray-600">AI-identified areas for workflow optimization</p>
+              <div className="flex items-center space-x-2">
+                <Zap className="w-5 h-5 text-amber-600" />
+                <h3 className="text-lg font-semibold text-gray-900">⚡ Automation Opportunities</h3>
+              </div>
+              <p className="text-sm text-gray-600 mt-1">Specific recommendations to save time and reduce manual work</p>
             </div>
             <div className="p-6">
               {automation_opportunities.length > 0 ? (
@@ -330,23 +333,42 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({ sessionId, onBack }) =
             </div>
           </div>
 
-          {/* Insights */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-            <div className="p-6 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">AI Insights</h3>
-              <p className="text-sm text-gray-600">Key observations from workflow analysis</p>
+          {/* Natural Language Analysis - Prominent Display */}
+          <div className="bg-gradient-to-br from-blue-50 to-teal-50 rounded-lg shadow-sm border border-blue-200">
+            <div className="p-6 border-b border-blue-200 bg-white/50 rounded-t-lg">
+              <div className="flex items-center space-x-2">
+                <Brain className="w-6 h-6 text-blue-600" />
+                <h3 className="text-lg font-semibold text-gray-900">🤖 AI Analysis Summary</h3>
+              </div>
+              <p className="text-sm text-gray-600 mt-1">What our AI discovered about your workflow</p>
             </div>
             <div className="p-6">
               {insights.length > 0 ? (
                 <div className="space-y-4">
                   {insights.slice(0, 5).map((insight: any, index: number) => (
-                    <div key={index} className="flex items-start space-x-3">
-                      <div className="w-2 h-2 bg-teal-500 rounded-full mt-2 flex-shrink-0"></div>
-                      <p className="text-sm text-gray-700">
-                        {typeof insight === 'string' ? insight : insight.description || 'Workflow insight identified'}
-                      </p>
+                    <div key={index} className="bg-white rounded-lg p-4 shadow-sm border border-blue-100">
+                      <div className="flex items-start space-x-3">
+                        <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <span className="text-blue-600 text-xs font-bold">{index + 1}</span>
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-base text-gray-800 font-medium leading-relaxed">
+                            {typeof insight === 'string' ? insight : insight.description || 'Workflow insight identified'}
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   ))}
+                  <div className="mt-6 p-4 bg-white rounded-lg border border-teal-200">
+                    <div className="flex items-center space-x-2 text-teal-700">
+                      <Zap className="w-4 h-4" />
+                      <span className="text-sm font-medium">💡 Key Takeaway</span>
+                    </div>
+                    <p className="text-sm text-gray-700 mt-2">
+                      Based on this analysis, your workflow has <strong>{summary.automation_opportunities}</strong> automation opportunities 
+                      that could save approximately <strong>{summary.estimated_time_savings.toFixed(1)} hours per week</strong>.
+                    </p>
+                  </div>
                 </div>
               ) : (
                 <div className="text-center py-8 text-gray-500">

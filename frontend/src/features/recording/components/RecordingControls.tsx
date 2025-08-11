@@ -9,7 +9,7 @@ import { Play, Square, Pause, Monitor, AlertCircle, CheckCircle, Upload, RotateC
 import { useScreenRecording } from '../hooks/useScreenRecording'
 import { recordingAPI, isRecordingAPIError } from '../services/recordingAPI'
 import type { UploadProgress, UploadEvent } from '../services/uploadQueue'
-import { sessionPersistence } from '../services/sessionPersistence'
+// import { sessionPersistence } from '../services/sessionPersistence'
 import type { SessionRecoveryInfo } from '../services/sessionPersistence'
 
 interface RecordingControlsProps {
@@ -43,10 +43,10 @@ export const RecordingControls: React.FC<RecordingControlsProps> = ({
   const [useDirectStorage, setUseDirectStorage] = useState(false) // Temporarily use proxied uploads until backend issue is fixed
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false)
   
-  // Recovery state
-  const [showRecoveryBanner, setShowRecoveryBanner] = useState(false)
-  const [recoveryInfo, setRecoveryInfo] = useState<SessionRecoveryInfo | null>(null)
-  const [isRecovering, setIsRecovering] = useState(false)
+  // Recovery state - disabled for MVP
+  // const [showRecoveryBanner, setShowRecoveryBanner] = useState(false)
+  // const [recoveryInfo, setRecoveryInfo] = useState<SessionRecoveryInfo | null>(null)
+  // const [isRecovering, setIsRecovering] = useState(false)
   
   // Refs for chunk management and stable callback references
   const chunkIndexRef = useRef(0)
@@ -67,9 +67,8 @@ export const RecordingControls: React.FC<RecordingControlsProps> = ({
       onError?.(error)
     },
     onRecoveryDetected: (info: SessionRecoveryInfo) => {
-      console.log('Recovery detected:', info)
-      setRecoveryInfo(info)
-      setShowRecoveryBanner(true)
+      // Recovery disabled for MVP
+      console.log('Recovery detected (disabled for MVP):', info)
     },
     onSessionPersisted: (sessionData) => {
       console.log('Session persisted:', sessionData.sessionId)
@@ -128,64 +127,9 @@ export const RecordingControls: React.FC<RecordingControlsProps> = ({
     }
   }, [onError])
 
-  // Recovery handlers
-  const handleRecoverSession = useCallback(async () => {
-    if (!recoveryInfo || !recoveryInfo.hasRecoverableSession) return
-
-    setIsRecovering(true)
-    try {
-      const success = await screenRecording.recoverSession(recoveryInfo)
-      
-      if (success && recoveryInfo.sessionData) {
-        const sessionData = recoveryInfo.sessionData
-        
-        // Restore UI state from recovered session
-        setSessionId(sessionData.sessionId)
-        setChunkCount(sessionData.chunkCount)
-        setTotalSize(sessionData.totalSize)
-        setUseEnhancedUpload(sessionData.settings.useEnhancedUpload)
-        setUseDirectStorage(sessionData.settings.useDirectStorage)
-        
-        // Restore upload progress
-        setUploadProgress({
-          totalChunks: sessionData.uploadProgress.totalChunks || 0,
-          completedChunks: sessionData.uploadProgress.completedChunks || 0,
-          failedChunks: sessionData.uploadProgress.failedChunks || 0,
-          uploadedBytes: sessionData.uploadProgress.uploadedBytes || 0,
-          totalBytes: sessionData.uploadProgress.totalBytes || 0,
-          percentage: sessionData.uploadProgress.percentage || 0,
-          estimatedTimeRemaining: (sessionData.uploadProgress as any).estimatedTimeRemaining || 0,
-          averageUploadSpeed: (sessionData.uploadProgress as any).averageUploadSpeed || 0
-        })
-        
-        console.log(`Successfully recovered session: ${sessionData.sessionId}`)
-        setShowRecoveryBanner(false)
-        
-        // Configure upload queue for recovered session if needed
-        if (sessionData.uploadProgress.totalChunks > sessionData.uploadProgress.completedChunks) {
-          // There are pending uploads from the recovered session
-          console.log(`Recovered session has ${sessionData.uploadProgress.totalChunks - sessionData.uploadProgress.completedChunks} pending uploads`)
-        }
-
-        // Success notification (using onError for now as success callback)
-        const durationText = `${Math.floor(sessionData.duration / 60)}:${(sessionData.duration % 60).toString().padStart(2, '0')}`
-        console.log(`✅ Recording session recovered! Duration: ${durationText}, Chunks: ${sessionData.chunkCount}`)
-      } else {
-        throw new Error('Failed to recover session - session validation failed')
-      }
-    } catch (error) {
-      console.error('Recovery failed:', error)
-      onError?.(`Recovery failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
-    } finally {
-      setIsRecovering(false)
-    }
-  }, [recoveryInfo, screenRecording, onError])
-
-  const handleDismissRecovery = useCallback(() => {
-    screenRecording.clearRecoveryData()
-    setShowRecoveryBanner(false)
-    setRecoveryInfo(null)
-  }, [screenRecording])
+  // Recovery handlers - disabled for MVP
+  // const handleRecoverSession = useCallback(async () => {}, [])
+  // const handleDismissRecovery = useCallback(() => {}, [])
 
   // Update upload method when storage setting changes
   useEffect(() => {
@@ -414,8 +358,8 @@ export const RecordingControls: React.FC<RecordingControlsProps> = ({
   
   return (
     <div className={`bg-gradient-to-br from-blue-50 to-indigo-100 rounded-xl shadow-xl border border-blue-200 p-8 max-w-4xl mx-auto ${className}`}>
-      {/* Recovery Banner */}
-      {showRecoveryBanner && recoveryInfo && recoveryInfo.sessionData && (
+      {/* Recovery Banner - Disabled for MVP */}
+      {false && false && (
         <div className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4">
           <div className="flex items-start justify-between">
             <div className="flex items-start space-x-3">
@@ -430,28 +374,28 @@ export const RecordingControls: React.FC<RecordingControlsProps> = ({
                   <p>
                     An incomplete recording session was found from{' '}
                     <span className="font-medium">
-                      {sessionPersistence.getRecoveryStats(recoveryInfo.sessionData).timeAgoFormatted}
+                      {/* {sessionPersistence.getRecoveryStats(recoveryInfo.sessionData).timeAgoFormatted} */}
                     </span>
                   </p>
                   <div className="grid grid-cols-3 gap-4 mt-3">
                     <div className="flex items-center space-x-2">
                       <Clock className="w-4 h-4 text-blue-600" />
                       <span className="font-medium">
-                        {sessionPersistence.getRecoveryStats(recoveryInfo.sessionData).durationFormatted}
+                        {/* {sessionPersistence.getRecoveryStats(recoveryInfo.sessionData).durationFormatted} */}
                       </span>
                       <span className="text-xs text-blue-600">recorded</span>
                     </div>
                     <div className="flex items-center space-x-2">
                       <Upload className="w-4 h-4 text-blue-600" />
                       <span className="font-medium">
-                        {sessionPersistence.getRecoveryStats(recoveryInfo.sessionData).chunksGenerated}
+                        {/* {sessionPersistence.getRecoveryStats(recoveryInfo.sessionData).chunksGenerated} */}
                       </span>
                       <span className="text-xs text-blue-600">chunks</span>
                     </div>
                     <div className="flex items-center space-x-2">
                       <Monitor className="w-4 h-4 text-blue-600" />
                       <span className="font-medium">
-                        {sessionPersistence.getRecoveryStats(recoveryInfo.sessionData).sizeFormatted}
+                        {/* {sessionPersistence.getRecoveryStats(recoveryInfo.sessionData).sizeFormatted} */}
                       </span>
                       <span className="text-xs text-blue-600">size</span>
                     </div>
@@ -460,7 +404,7 @@ export const RecordingControls: React.FC<RecordingControlsProps> = ({
               </div>
             </div>
             <button
-              onClick={handleDismissRecovery}
+              onClick={() => {}}
               className="flex-shrink-0 text-blue-600 hover:text-blue-800 transition-colors"
               title="Dismiss recovery"
             >
@@ -474,28 +418,17 @@ export const RecordingControls: React.FC<RecordingControlsProps> = ({
             </p>
             <div className="flex items-center space-x-3">
               <button
-                onClick={handleDismissRecovery}
+                onClick={() => {}}
                 className="px-3 py-1.5 text-blue-700 hover:text-blue-900 transition-colors text-sm"
               >
                 Dismiss
               </button>
               <button
-                onClick={handleRecoverSession}
-                disabled={isRecovering}
-                className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  isRecovering
-                    ? 'bg-blue-300 text-blue-800 cursor-not-allowed'
-                    : 'bg-blue-600 hover:bg-blue-700 text-white'
-                }`}
+                onClick={() => {}}
+                disabled={false}
+                className="px-4 py-1.5 rounded-lg text-sm font-medium transition-colors bg-blue-600 hover:bg-blue-700 text-white"
               >
-                {isRecovering ? (
-                  <span className="flex items-center space-x-2">
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>Recovering...</span>
-                  </span>
-                ) : (
-                  'Recover Session'
-                )}
+                Recover Session
               </button>
             </div>
           </div>
@@ -620,8 +553,8 @@ export const RecordingControls: React.FC<RecordingControlsProps> = ({
         </div>
       )}
 
-      {/* Recovery Success Status */}
-      {screenRecording.state.isRecoveredSession && status === 'idle' && (
+      {/* Recovery Success Status - Disabled for MVP */}
+      {false && (
         <div className="bg-green-50 rounded-lg p-4 mb-6 border border-green-200">
           <div className="flex items-center space-x-3">
             <div className="flex-shrink-0">

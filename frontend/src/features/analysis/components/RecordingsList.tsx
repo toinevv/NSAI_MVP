@@ -5,7 +5,7 @@
  */
 
 import React, { useState, useEffect } from 'react'
-import { Film, Clock, HardDrive, Calendar, ChevronRight, RefreshCw, Eye, Trash2, Shield, BarChart3 } from 'lucide-react'
+import { Film, Clock, HardDrive, Calendar, ChevronRight, RefreshCw, Eye, Trash2, Shield, BarChart3, Brain, Zap } from 'lucide-react'
 import { AnalysisButton } from './AnalysisButton'
 import { WorkflowAnalysis } from './WorkflowAnalysis'
 import { PrivacyModal } from '../../../components/PrivacyModal'
@@ -38,10 +38,11 @@ export const RecordingsList: React.FC = () => {
     setError(null)
     
     try {
-      const response = await recordingAPI.listRecordings({
-        status: 'completed',
-        page_size: 10
-      })
+      const response = await recordingAPI.listRecordings(
+        1, // page
+        10, // pageSize
+        'completed' // status
+      )
       
       if (response?.recordings) {
         setRecordings(response.recordings)
@@ -82,6 +83,14 @@ export const RecordingsList: React.FC = () => {
     console.log('View results for recording:', recordingId)
     // For now, just show the analysis button
     setSelectedRecording(recordingId)
+  }
+
+  const handleStartAnalysis = (recordingId: string, analysisType: 'quick' | 'full') => {
+    console.log(`Starting ${analysisType} analysis for recording:`, recordingId)
+    setSelectedRecording(recordingId)
+    setActiveAnalysisId(recordingId)
+    setShowResults(false)
+    // The AnalysisButton component will handle the actual analysis start
   }
 
   const formatDuration = (seconds: number): string => {
@@ -227,27 +236,55 @@ export const RecordingsList: React.FC = () => {
                     <div className="mt-3 flex items-center justify-between">
                       <div className="flex items-center space-x-2">
                         {getStatusBadge(recording.status)}
-                        {recording.has_analysis && (
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-teal-100 text-teal-800">
+                        {recording.has_analysis ? (
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
                             <BarChart3 className="w-3 h-3 mr-1" />
-                            Analyzed
+                            📊 Analysis Complete - Report Ready
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 border border-amber-200">
+                            <Brain className="w-3 h-3 mr-1" />
+                            🆕 Ready for Analysis
                           </span>
                         )}
                       </div>
                       
                       {/* Action Buttons */}
                       <div className="flex items-center space-x-2">
-                        {recording.has_analysis && (
+                        {recording.has_analysis ? (
                           <button
                             onClick={(e) => {
                               e.stopPropagation()
                               handleViewResults(recording.id)
                             }}
-                            className="flex items-center space-x-1 px-3 py-1.5 text-xs bg-teal-100 hover:bg-teal-200 text-teal-800 rounded-lg transition-colors"
+                            className="flex items-center space-x-1 px-3 py-1.5 text-xs bg-green-100 hover:bg-green-200 text-green-800 rounded-lg transition-colors font-medium"
                           >
-                            <Eye className="w-3 h-3" />
-                            <span>View Results</span>
+                            <BarChart3 className="w-3 h-3" />
+                            <span>📊 View Analysis Report</span>
                           </button>
+                        ) : (
+                          <>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleStartAnalysis(recording.id, 'quick')
+                              }}
+                              className="flex items-center space-x-1 px-3 py-1.5 text-xs bg-blue-100 hover:bg-blue-200 text-blue-800 rounded-lg transition-colors"
+                            >
+                              <Zap className="w-3 h-3" />
+                              <span>Quick Analysis</span>
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleStartAnalysis(recording.id, 'full')
+                              }}
+                              className="flex items-center space-x-1 px-3 py-1.5 text-xs bg-teal-100 hover:bg-teal-200 text-teal-800 rounded-lg transition-colors"
+                            >
+                              <Brain className="w-3 h-3" />
+                              <span>Full Analysis</span>
+                            </button>
+                          </>
                         )}
                         
                         <button

@@ -102,8 +102,12 @@ async def start_analysis(
         )
         
         # Get orchestrator to estimate cost
-        orchestrator = get_orchestrator()
-        estimated_cost = orchestrator.gpt4v_client.estimate_cost(10)  # Assume ~10 frames
+        try:
+            orchestrator = get_orchestrator()
+            estimated_cost = orchestrator.gpt4v_client.estimate_cost(10) if orchestrator.gpt4v_client else 0.20
+        except Exception as e:
+            logger.warning(f"Could not initialize orchestrator for cost estimation: {e}")
+            estimated_cost = 0.20  # Fallback estimate
         
         return AnalysisResponse(
             id=str(analysis.id),
@@ -129,12 +133,28 @@ async def run_full_analysis_pipeline(
     """
     logger.info(f"Starting full analysis pipeline for recording {recording_id}")
     
-    # Get database session
-    db = next(get_db())
+    # Import here to avoid circular imports
+    from app.core.database import get_sync_db
+    
+    # Get database session for background task
+    db = get_sync_db()
     
     try:
         # Get orchestrator
-        orchestrator = get_orchestrator()
+        try:
+            orchestrator = get_orchestrator()
+        except Exception as e:
+            logger.error(f"Failed to initialize orchestrator: {e}")
+            # Update analysis as failed and return
+            analysis = db.query(AnalysisResult).filter(
+                AnalysisResult.id == analysis_id
+            ).first()
+            if analysis:
+                analysis.status = "failed"
+                analysis.error_message = f"Configuration error: {str(e)}"
+                analysis.processing_completed_at = datetime.now(timezone.utc)
+                db.commit()
+            return
         
         # Run complete analysis pipeline
         result = await orchestrator.analyze_recording(

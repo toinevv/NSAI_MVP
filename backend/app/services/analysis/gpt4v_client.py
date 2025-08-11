@@ -35,7 +35,8 @@ class GPT4VClient:
         # Configuration for GPT-4V
         self.model = settings.GPT4V_MODEL
         self.max_tokens = settings.MAX_TOKENS_PER_REQUEST
-        self.temperature = 0.3  # Lower temperature for consistent analysis
+        self.temperature = settings.GPT4V_TEMPERATURE  # From config/env
+        self.image_detail = settings.GPT4V_IMAGE_DETAIL  # From config/env
         self.max_retries = 3
         self.retry_delay = 2  # Initial delay in seconds
         
@@ -144,7 +145,7 @@ class GPT4VClient:
                     "type": "image_url",
                     "image_url": {
                         "url": f"data:image/jpeg;base64,{frame['image_base64']}",
-                        "detail": "high"  # High detail for UI element detection
+                        "detail": self.image_detail  # Configurable image detail
                     }
                 })
                 frames_added += 1

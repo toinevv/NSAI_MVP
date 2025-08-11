@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
-import { CheckCircle, XCircle, Clock, Database, Brain, Zap, Video, BarChart3, RefreshCw } from 'lucide-react'
+import { CheckCircle, XCircle, Clock, Database, Brain, Zap, Video, BarChart3, RefreshCw, AlertCircle } from 'lucide-react'
 import { RecordingControls } from './features/recording/components/RecordingControls'
+import { ManualVideoUpload } from './features/recording/components/ManualVideoUpload'
 import { RecordingsList } from './features/analysis/components/RecordingsList'
-import { ResultsPage } from './features/analysis/components/ResultsPage'
+import { MinimalResultsPage } from './features/analysis/components/MinimalResultsPage'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { useAnalysisPolling } from './features/analysis/hooks/useAnalysisPolling'
 import { checkHealth } from './lib/api-client'
@@ -196,7 +197,7 @@ function App() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {currentView === 'results' && currentSessionId ? (
-          <ResultsPage 
+          <MinimalResultsPage 
             sessionId={currentSessionId} 
             onBack={() => setCurrentView('analyze')} 
           />
@@ -429,7 +430,8 @@ function App() {
             )}
 
             {allConnected && (
-              <div className="mb-8">
+              <div className="space-y-8 mb-8">
+                {/* Regular Recording */}
                 <ErrorBoundary>
                   <RecordingControls 
                     onRecordingComplete={(recordingId) => {
@@ -448,6 +450,28 @@ function App() {
                     onError={(error) => {
                       console.error('Recording error:', error)
                       // TODO: Show user-friendly error notification
+                    }}
+                  />
+                </ErrorBoundary>
+                
+                {/* Manual Upload for Testing */}
+                <ErrorBoundary>
+                  <ManualVideoUpload
+                    onUploadComplete={(sessionId) => {
+                      console.log('Manual upload completed:', sessionId)
+                      setCurrentSessionId(sessionId)
+                      setSuccessMessage('✅ Test video uploaded successfully! Starting AI analysis...')
+                      setCurrentView('upload-complete')
+                      
+                      // Brief pause to show upload complete state, then start analysis
+                      setTimeout(() => {
+                        setCurrentView('analyzing')
+                        setSuccessMessage('🤖 AI analysis in progress - identifying automation opportunities...')
+                        analysisPolling.startPolling(sessionId)
+                      }, 2000)
+                    }}
+                    onError={(error) => {
+                      console.error('Manual upload error:', error)
                     }}
                   />
                 </ErrorBoundary>

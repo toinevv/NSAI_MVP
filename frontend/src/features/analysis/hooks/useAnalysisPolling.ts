@@ -81,7 +81,7 @@ export const useAnalysisPolling = (options: UseAnalysisPollingOptions = {}) => {
     }
   }, [onError])
 
-  const pollAnalysisStatus = useCallback(async (analysisId: string) => {
+  const pollAnalysisStatus = useCallback(async (analysisId: string, recordingId: string) => {
     try {
       const statusResponse = await analysisAPI.getAnalysisStatus(analysisId)
       
@@ -98,9 +98,9 @@ export const useAnalysisPolling = (options: UseAnalysisPollingOptions = {}) => {
       console.log(`Analysis ${analysisId} status:`, status.status, '-', status.message)
 
       if (status.status === 'completed') {
-        // Analysis is complete, get the full results
+        // Analysis is complete, get the full results using recordingId
         console.log('Analysis completed, fetching results...')
-        await getAnalysisResults(analysisId)
+        await getAnalysisResults(recordingId)
         return 'completed'
       } else if (status.status === 'failed') {
         const errorMessage = statusResponse.error_message || 'Analysis failed'
@@ -166,14 +166,13 @@ export const useAnalysisPolling = (options: UseAnalysisPollingOptions = {}) => {
         return
       }
 
-      const status = await pollAnalysisStatus(analysisId)
+      const status = await pollAnalysisStatus(analysisId, recordingId)
 
       if (status === 'processing') {
         // Continue polling
         pollingTimeoutRef.current = setTimeout(poll, pollingInterval)
       } else if (status === 'completed') {
-        // Analysis complete - get results using the recordingId (sessionId)
-        await getAnalysisResults(recordingId)
+        // Analysis complete - results already fetched in pollAnalysisStatus
         setIsPolling(false)
         pollStartTimeRef.current = null
       } else {

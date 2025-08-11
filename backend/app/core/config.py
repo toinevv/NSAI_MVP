@@ -19,9 +19,11 @@ class Settings(BaseSettings):
     SUPABASE_ANON_KEY: str = ""  # Added for frontend compatibility
     
     # AI Services
-    OPENAI_API_KEY: str = ""
-    GPT4V_MODEL: str = "gpt-4o"  # Updated model that supports vision
-    MAX_TOKENS_PER_REQUEST: int = 4096
+    OPENAI_API_KEY: str
+    GPT4V_MODEL: str
+    MAX_TOKENS_PER_REQUEST: int
+    GPT4V_TEMPERATURE: float
+    GPT4V_IMAGE_DETAIL: str
     
     # Storage
     SUPABASE_STORAGE_BUCKET: str = "recording-sessions"
