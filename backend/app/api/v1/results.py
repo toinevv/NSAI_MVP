@@ -10,6 +10,7 @@ from typing import List, Dict, Any, Optional
 from uuid import UUID
 from sqlalchemy.orm import Session
 import logging
+import json
 
 from app.core.database import get_db
 from app.models.database import RecordingSession, AnalysisResult
@@ -33,6 +34,14 @@ class ResultsSummary(BaseModel):
     automation_opportunities: int
     estimated_time_savings: float
     confidence_score: float
+
+class RawAnalysisData(BaseModel):
+    session_id: str
+    status: str
+    raw_gpt_response: Dict[str, Any]
+    structured_insights: Dict[str, Any]
+    processing_info: Dict[str, Any]
+    metadata: Dict[str, Any]
 
 @router.get("/{session_id}")
 async def get_complete_results(
@@ -323,6 +332,81 @@ async def get_cost_analysis(
     except Exception as e:
         logger.error(f"Error calculating cost analysis for session {session_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to calculate cost analysis: {str(e)}")
+
+@router.get("/{session_id}/raw")
+async def get_raw_analysis_data(
+    session_id: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Get raw GPT-4V analysis data for development and debugging
+    Returns complete raw GPT response and processing metadata
+    """
+    try:
+        # Get the recording session
+        recording = db.query(RecordingSession).filter(
+            RecordingSession.id == session_id
+        ).first()
+        
+        if not recording:
+            raise HTTPException(status_code=404, detail=f"Recording {session_id} not found")
+        
+        # Get the analysis results
+        analysis = db.query(AnalysisResult).filter(
+            AnalysisResult.session_id == session_id
+        ).first()
+        
+        if not analysis:
+            raise HTTPException(status_code=404, detail=f"Analysis results not found for recording {session_id}")
+        
+        # Parse raw GPT response
+        raw_gpt_response = analysis.raw_gpt_response or {}
+        structured_insights = analysis.structured_insights or {}
+        
+        # Build comprehensive processing info
+        processing_info = {
+            "gpt_version": analysis.gpt_version,
+            "frames_analyzed": analysis.frames_analyzed,
+            "processing_time_seconds": analysis.processing_time_seconds,
+            "analysis_cost": float(analysis.analysis_cost) if analysis.analysis_cost else 0.0,
+            "confidence_score": float(analysis.confidence_score) if analysis.confidence_score else 0.0,
+            "processing_started_at": analysis.processing_started_at.isoformat() if analysis.processing_started_at else None,
+            "processing_completed_at": analysis.processing_completed_at.isoformat() if analysis.processing_completed_at else None,
+            "status": analysis.status,
+            "error_message": analysis.error_message
+        }
+        
+        # Extract token usage from raw response if available
+        token_usage = {}
+        if raw_gpt_response and "usage" in raw_gpt_response:
+            token_usage = raw_gpt_response["usage"]
+        
+        # Build metadata
+        metadata = {
+            "recording_duration_seconds": recording.duration_seconds,
+            "recording_file_size_bytes": recording.file_size_bytes,
+            "workflow_type": recording.workflow_type,
+            "token_usage": token_usage,
+            "has_raw_response": bool(raw_gpt_response),
+            "has_structured_insights": bool(structured_insights),
+            "analysis_id": str(analysis.id)
+        }
+        
+        return {
+            "session_id": session_id,
+            "status": analysis.status,
+            "raw_gpt_response": raw_gpt_response,
+            "structured_insights": structured_insights,
+            "processing_info": processing_info,
+            "metadata": metadata,
+            "message": "Raw analysis data retrieved successfully"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error retrieving raw analysis data for session {session_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve raw analysis data: {str(e)}")
 
 # Export functionality removed per CTO feedback - not needed for MVP
 # Focus on core recording→analysis→results pipeline

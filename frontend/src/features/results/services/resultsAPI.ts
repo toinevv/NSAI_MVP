@@ -107,6 +107,58 @@ export interface ResultsSummary {
   confidence_score: number
 }
 
+export interface TokenUsage {
+  prompt_tokens?: number
+  completion_tokens?: number
+  total_tokens?: number
+}
+
+export interface ProcessingInfo {
+  gpt_version: string
+  frames_analyzed: number
+  processing_time_seconds: number
+  analysis_cost: number
+  confidence_score: number
+  processing_started_at: string | null
+  processing_completed_at: string | null
+  status: string
+  error_message?: string | null
+}
+
+export interface AnalysisMetadata {
+  recording_duration_seconds: number
+  recording_file_size_bytes: number
+  workflow_type?: string | null
+  token_usage: TokenUsage
+  has_raw_response: boolean
+  has_structured_insights: boolean
+  analysis_id: string
+}
+
+export interface RawAnalysisResponse {
+  session_id: string
+  status: string
+  raw_gpt_response: {
+    success?: boolean
+    analysis?: any
+    usage?: TokenUsage
+    metadata?: any
+    [key: string]: any
+  }
+  structured_insights: {
+    workflows?: any[]
+    automation_opportunities?: any[]
+    time_analysis?: any
+    insights?: any[]
+    summary?: any
+    confidence_score?: number
+    [key: string]: any
+  }
+  processing_info: ProcessingInfo
+  metadata: AnalysisMetadata
+  message: string
+}
+
 export class ResultsAPIError extends APIError {
   constructor(
     message: string,
@@ -201,6 +253,17 @@ class ResultsAPI {
       return await get<CostAnalysisResponse>(endpoint)
     } catch (error) {
       this.handleError(error, `results/${sessionId}/cost`)
+    }
+  }
+  
+  /**
+   * Get raw GPT-4V analysis data for development and debugging
+   */
+  async getRawAnalysisData(sessionId: string): Promise<RawAnalysisResponse> {
+    try {
+      return await get<RawAnalysisResponse>(`results/${sessionId}/raw`)
+    } catch (error) {
+      this.handleError(error, `results/${sessionId}/raw`)
     }
   }
   
