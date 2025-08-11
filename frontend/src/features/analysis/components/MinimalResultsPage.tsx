@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
-import { CheckCircle, Clock, AlertCircle, Brain, Zap, DollarSign, ArrowLeft, RefreshCw, TrendingUp } from 'lucide-react'
+import { CheckCircle, Clock, AlertCircle, Brain, Zap, DollarSign, ArrowLeft, RefreshCw, TrendingUp, GitBranch } from 'lucide-react'
 import { resultsAPI, type ResultsApiResponse, getResultsErrorMessage } from '../../results/services/resultsAPI'
+import { DynamicWorkflowChart } from './DynamicWorkflowChart'
 
 interface MinimalResultsPageProps {
   sessionId: string
@@ -197,6 +198,27 @@ export const MinimalResultsPage: React.FC<MinimalResultsPageProps> = ({ sessionI
             </div>
           )}
         </div>
+
+        {/* Workflow Chart - If Available */}
+        {analysisResults.workflows && analysisResults.workflows.length > 0 && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 mb-8">
+            <div className="flex items-center space-x-2 mb-6">
+              <GitBranch className="w-6 h-6 text-purple-600" />
+              <h3 className="text-xl font-semibold text-gray-900">Workflow Visualization</h3>
+            </div>
+            
+            <div className="min-h-[400px] rounded-lg border border-gray-200 overflow-hidden">
+              <DynamicWorkflowChart
+                workflowData={analysisResults.workflows}
+                className="h-full w-full"
+              />
+            </div>
+            
+            <p className="text-sm text-gray-500 mt-4">
+              Interactive workflow map showing your process flow and automation opportunities
+            </p>
+          </div>
+        )}
 
         {/* Top Opportunities - Simplified */}
         {automation_opportunities.length > 0 && (

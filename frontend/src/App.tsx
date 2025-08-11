@@ -506,7 +506,13 @@ function App() {
               </p>
             </div>
             
-            <RecordingsList />
+            <RecordingsList 
+              onViewResults={(sessionId) => {
+                console.log('Navigating to results for session:', sessionId)
+                setCurrentSessionId(sessionId)
+                setCurrentView('results')
+              }}
+            />
           </>
         )}
       </main>

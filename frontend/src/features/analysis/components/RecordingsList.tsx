@@ -7,7 +7,7 @@
 import React, { useState, useEffect } from 'react'
 import { Film, Clock, HardDrive, Calendar, ChevronRight, RefreshCw, Eye, Trash2, Shield, BarChart3, Brain, Zap } from 'lucide-react'
 import { AnalysisButton } from './AnalysisButton'
-import { WorkflowAnalysis } from './WorkflowAnalysis'
+// import { WorkflowAnalysis } from './WorkflowAnalysis' // Removed - using unified results page
 import { PrivacyModal } from '../../../components/PrivacyModal'
 import { recordingAPI } from '../../recording/services/recordingAPI'
 
@@ -23,13 +23,16 @@ interface Recording {
   has_analysis?: boolean
 }
 
-export const RecordingsList: React.FC = () => {
+interface RecordingsListProps {
+  onViewResults?: (sessionId: string) => void
+}
+
+export const RecordingsList: React.FC<RecordingsListProps> = ({ onViewResults }) => {
   const [recordings, setRecordings] = useState<Recording[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedRecording, setSelectedRecording] = useState<string | null>(null)
-  const [activeAnalysisId, setActiveAnalysisId] = useState<string | null>(null)
-  const [showResults, setShowResults] = useState(false)
+  // Removed activeAnalysisId and showResults - using unified results page now
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [privacyModalId, setPrivacyModalId] = useState<string | null>(null)
 
@@ -79,10 +82,9 @@ export const RecordingsList: React.FC = () => {
   }
 
   const handleViewResults = (recordingId: string) => {
-    // Navigate to results - this would integrate with the main app routing
     console.log('View results for recording:', recordingId)
-    // For now, just show the analysis button
-    setSelectedRecording(recordingId)
+    // Navigate to the unified results page via App.tsx
+    onViewResults?.(recordingId)
   }
 
   const handleStartAnalysis = (recordingId: string, analysisType: 'quick' | 'full') => {
@@ -329,8 +331,8 @@ export const RecordingsList: React.FC = () => {
                   recordingId={recording.id}
                   onAnalysisComplete={(analysisId) => {
                     console.log(`Analysis ${analysisId} started for recording ${recording.id}`)
-                    setActiveAnalysisId(analysisId)
-                    setShowResults(true)
+                    // Navigate to unified results page instead of showing modal
+                    onViewResults?.(recording.id)
                   }}
                 />
               </div>
@@ -354,20 +356,7 @@ export const RecordingsList: React.FC = () => {
         </div>
       )}
 
-      {/* Analysis Results Modal */}
-      {showResults && activeAnalysisId && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="max-w-6xl w-full max-h-[90vh] overflow-y-auto">
-            <WorkflowAnalysis
-              analysisId={activeAnalysisId}
-              onClose={() => {
-                setShowResults(false)
-                setActiveAnalysisId(null)
-              }}
-            />
-          </div>
-        </div>
-      )}
+      {/* Analysis Results Modal - Removed: Using unified results page */}
 
       {/* Privacy Settings Modal */}
       {privacyModalId && (
