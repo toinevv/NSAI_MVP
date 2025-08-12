@@ -1,17 +1,10 @@
 /**
  * Settings Constants
  * Runtime values, presets, and default configurations
- * Imports types from types/settings.ts
  */
 
-import {
-  AppSettings,
-  FrameExtractionPresets,
-  RecordingQualityPresets
-} from '../types/settings'
-
-// Preset data constants (strongly typed)
-export const FRAME_EXTRACTION_PRESETS: FrameExtractionPresets = {
+// Preset data constants
+export const FRAME_EXTRACTION_PRESETS = {
   quick: { 
     fps: 0.33, 
     max_frames: 50, 
@@ -42,7 +35,7 @@ export const FRAME_EXTRACTION_PRESETS: FrameExtractionPresets = {
   }
 }
 
-export const RECORDING_QUALITY_PRESETS: RecordingQualityPresets = {
+export const RECORDING_QUALITY_PRESETS = {
   performance: { 
     quality: "480p", 
     fps: 24, 
@@ -70,7 +63,7 @@ export const RECORDING_QUALITY_PRESETS: RecordingQualityPresets = {
 }
 
 // Default settings
-export const DEFAULT_SETTINGS: AppSettings = {
+export const DEFAULT_SETTINGS = {
   frameExtraction: {
     fps: 1.0,
     max_frames: 120,
