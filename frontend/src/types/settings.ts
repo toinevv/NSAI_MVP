@@ -1,9 +1,3 @@
-/**
- * Settings Types
- * Pure type definitions for recording and analysis settings
- * NO runtime constants - those are in constants/settings.ts
- */
-
 // Core settings interfaces
 export interface FrameExtractionSettings {
   fps: number
