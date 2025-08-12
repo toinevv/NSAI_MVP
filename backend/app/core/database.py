@@ -15,19 +15,19 @@ logger = logging.getLogger(__name__)
 def get_database_url() -> str:
     """
     Get database URL for Supabase connection
-    For MVP, we'll use a simplified approach via Supabase client
+    Uses SQLite for development - Supabase operations handled via client SDK
     """
-    # For MVP, we'll use the supabase-py client for database operations
-    # This is simpler than constructing PostgreSQL URLs
-    # In production, we can optimize with direct PostgreSQL connections
+    # For MVP development, use SQLite for SQLAlchemy operations
+    # Supabase data operations will be handled via the Supabase Python client
+    # This provides the best compatibility and development experience
     
-    # Fallback to local database for development if Supabase isn't configured
-    if not settings.SUPABASE_URL or not settings.SUPABASE_SERVICE_KEY:
-        logger.warning("Supabase not fully configured, using SQLite for development")
-        return "sqlite:///./newsystem_mvp.db"
+    if settings.SUPABASE_URL and settings.SUPABASE_SERVICE_KEY:
+        logger.info("Supabase configured - using SQLite for SQLAlchemy with Supabase client for data operations")
+    else:
+        logger.warning("Supabase not fully configured - using SQLite for development")
     
-    # For now, return SQLite - we'll use Supabase client for operations
-    # This allows us to test locally while using Supabase for storage
+    # Always use SQLite for now - this allows local development and testing
+    # while we can still save data to Supabase via the client SDK when needed
     return "sqlite:///./newsystem_mvp.db"
 
 # Create database engine
