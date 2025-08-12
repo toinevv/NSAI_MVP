@@ -5,22 +5,37 @@
  */
 
 import React, { useState } from 'react'
-import { Brain, Loader2, AlertCircle, CheckCircle, Image } from 'lucide-react'
+import { Brain, Loader2, AlertCircle, CheckCircle, Image, Settings } from 'lucide-react'
 import axios from 'axios'
+import { useSettings } from '../../../contexts/SettingsContext'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+
+interface FrameExtractionSettings {
+  fps: number
+  max_frames: number
+  scene_threshold: number
+  preset?: string
+}
 
 interface AnalysisButtonProps {
   recordingId: string
   onAnalysisComplete?: (analysisId: string) => void
   className?: string
+  videoDuration?: number // Pass video duration for settings calculations
+  onNavigateToSettings?: () => void // Navigate to settings tab
 }
 
 export const AnalysisButton: React.FC<AnalysisButtonProps> = ({
   recordingId,
   onAnalysisComplete,
-  className = ''
+  className = '',
+  videoDuration = 100,
+  onNavigateToSettings
 }) => {
+  // Use global settings instead of local hardcoded values
+  const { settings, getEstimatedFrames, getEstimatedCost } = useSettings()
+  
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [status, setStatus] = useState<'idle' | 'extracting' | 'analyzing' | 'completed' | 'error'>('idle')
   const [result, setResult] = useState<any>(null)
@@ -36,7 +51,8 @@ export const AnalysisButton: React.FC<AnalysisButtonProps> = ({
       const response = await axios.post(
         `${API_BASE_URL}/api/v1/analysis/${recordingId}/start`,
         {
-          analysis_type: analysisType
+          analysis_type: analysisType,
+          frame_extraction_settings: settings.frameExtraction
         }
       )
 
@@ -108,6 +124,26 @@ export const AnalysisButton: React.FC<AnalysisButtonProps> = ({
             </span>
           </div>
         </div>
+
+        {/* Settings Link */}
+        {status === 'idle' && onNavigateToSettings && (
+          <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Settings className="w-4 h-4 text-blue-600" />
+                <span className="text-sm text-blue-800">
+                  Using {settings.frameExtraction.fps} FPS extraction (~{getEstimatedFrames(videoDuration)} frames, ${getEstimatedCost(videoDuration).toFixed(2)})
+                </span>
+              </div>
+              <button
+                onClick={onNavigateToSettings}
+                className="text-xs bg-blue-100 hover:bg-blue-200 text-blue-800 px-2 py-1 rounded transition-colors"
+              >
+                Configure
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Status Message */}
         <div className="bg-gray-50 rounded-lg p-3">

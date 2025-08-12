@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
-import { CheckCircle, XCircle, Clock, Database, Brain, Zap, Video, BarChart3, RefreshCw, AlertCircle } from 'lucide-react'
+import { CheckCircle, XCircle, Clock, Database, Brain, Zap, Video, BarChart3, RefreshCw, AlertCircle, Settings } from 'lucide-react'
 import { RecordingControls } from './features/recording/components/RecordingControls'
 import { ManualVideoUpload } from './features/recording/components/ManualVideoUpload'
 import { RecordingsList } from './features/analysis/components/RecordingsList'
 import { MinimalResultsPage } from './features/analysis/components/MinimalResultsPage'
+import { SettingsPage } from './features/settings/components/SettingsPage'
+import { SettingsProvider } from './contexts/SettingsContext'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { useAnalysisPolling } from './features/analysis/hooks/useAnalysisPolling'
 import { checkHealth } from './lib/api-client'
@@ -17,7 +19,7 @@ interface ConnectionStatus {
 
 function App() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
-  const [currentView, setCurrentView] = useState<'record' | 'analyze' | 'results' | 'analyzing' | 'upload-complete'>('record')
+  const [currentView, setCurrentView] = useState<'record' | 'analyze' | 'settings' | 'results' | 'analyzing' | 'upload-complete'>('record')
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
   const [connections, setConnections] = useState<ConnectionStatus[]>([
     {
@@ -125,7 +127,8 @@ function App() {
   const allConnected = connections.every(conn => conn.status === 'connected')
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <SettingsProvider>
+      <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -164,6 +167,17 @@ function App() {
                 >
                   <BarChart3 className="w-4 h-4" />
                   <span>Analyze</span>
+                </button>
+                <button
+                  onClick={() => setCurrentView('settings')}
+                  className={`flex items-center space-x-2 px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                    currentView === 'settings'
+                      ? 'bg-white text-teal-600 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  <Settings className="w-4 h-4" />
+                  <span>Settings</span>
                 </button>
                 {currentView === 'analyzing' && (
                   <button
@@ -493,7 +507,7 @@ function App() {
               </div>
             )}
           </>
-        ) : (
+        ) : currentView === 'analyze' ? (
           /* Analyze View */
           <>
             <div className="text-center mb-12">
@@ -512,11 +526,16 @@ function App() {
                 setCurrentSessionId(sessionId)
                 setCurrentView('results')
               }}
+              onNavigateToSettings={() => setCurrentView('settings')}
             />
           </>
-        )}
+        ) : currentView === 'settings' ? (
+          /* Settings View */
+          <SettingsPage />
+        ) : null}
       </main>
-    </div>
+      </div>
+    </SettingsProvider>
   )
 }
 
