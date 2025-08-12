@@ -36,16 +36,25 @@ class FrameExtractor:
         self.temp_dir = Path(tempfile.gettempdir()) / "newsystem_frames"
         self.temp_dir.mkdir(exist_ok=True)
         
-        # Frame extraction settings (pragmatic for MVP)
-        self.target_frames = 10  # Start conservative for cost optimization
-        self.max_frames = 15  # Maximum to prevent high GPT-4V costs
-        self.min_scene_change_threshold = 0.3  # 30% change to detect new screen
+        # Frame extraction settings (optimized for comprehensive analysis)
+        if settings.FRAME_EXTRACTION_MODE == "testing":
+            # Aggressive extraction for testing
+            self.target_frames = 50  # High frame count for detailed analysis
+            self.max_frames = 60  # Maximum for comprehensive coverage
+            self.min_scene_change_threshold = 0.2  # More sensitive to changes
+        else:
+            # Production settings (cost-optimized)
+            self.target_frames = 20  # Balanced frame count
+            self.max_frames = 30  # Moderate maximum
+            self.min_scene_change_threshold = 0.3  # Standard sensitivity
+            
         self.jpeg_quality = 85  # Balance quality vs size for GPT-4V
         
     async def extract_frames_from_recording(
         self,
         session_id: UUID,
-        recording_duration_seconds: int
+        recording_duration_seconds: int,
+        extraction_settings: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
         Main entry point: Extract strategic frames from a recording session
@@ -67,7 +76,8 @@ class FrameExtractor:
             
             # Step 2: Calculate frame extraction strategy
             extraction_strategy = self._calculate_extraction_strategy(
-                recording_duration_seconds
+                recording_duration_seconds,
+                extraction_settings
             )
             
             # Step 3: Extract frames with smart selection
@@ -82,13 +92,23 @@ class FrameExtractor:
             except Exception as e:
                 logger.warning(f"Failed to clean up video file: {e}")
             
-            # Step 5: Prepare response with frame data
+            # Step 5: Prepare response with frame data and cost analysis
+            estimated_cost = len(frames_data) * settings.COST_PER_GPT4V_REQUEST
+            cost_warning = None
+            
+            if len(frames_data) > 40:
+                cost_warning = f"High frame count ({len(frames_data)} frames) will result in higher analysis costs (~${estimated_cost:.2f})"
+            elif len(frames_data) > 20:
+                cost_warning = f"Moderate frame count ({len(frames_data)} frames) - estimated cost: ~${estimated_cost:.2f}"
+            
             result = {
                 "session_id": str(session_id),
                 "frame_count": len(frames_data),
                 "extraction_strategy": extraction_strategy,
                 "frames": frames_data,
-                "estimated_gpt4v_cost": len(frames_data) * settings.COST_PER_GPT4V_REQUEST,
+                "estimated_gpt4v_cost": estimated_cost,
+                "cost_warning": cost_warning,
+                "extraction_mode": settings.FRAME_EXTRACTION_MODE,
                 "extraction_timestamp": datetime.utcnow().isoformat()
             }
             
@@ -217,7 +237,8 @@ class FrameExtractor:
     
     def _calculate_extraction_strategy(
         self,
-        duration_seconds: int
+        duration_seconds: int,
+        extraction_settings: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
         Calculate smart frame extraction strategy based on recording duration
@@ -229,27 +250,44 @@ class FrameExtractor:
         Returns:
             Strategy configuration dict
         """
-        # Pragmatic intervals based on recording length
-        if duration_seconds <= 60:  # 1 minute
-            interval_seconds = 6  # Frame every 6 seconds
-            target_frames = min(10, duration_seconds // 6)
-        elif duration_seconds <= 300:  # 5 minutes
-            interval_seconds = 20  # Frame every 20 seconds
-            target_frames = min(15, duration_seconds // 20)
-        elif duration_seconds <= 600:  # 10 minutes
-            interval_seconds = 40  # Frame every 40 seconds
-            target_frames = min(15, duration_seconds // 40)
-        else:  # Longer recordings
-            interval_seconds = 60  # Frame every minute
-            target_frames = min(15, duration_seconds // 60)
+        # Use custom settings if provided, otherwise use defaults/presets
+        if extraction_settings:
+            # Custom settings from API request
+            frames_per_second = extraction_settings.get('fps', settings.DEFAULT_FRAMES_PER_SECOND)
+            max_frames = extraction_settings.get('max_frames', settings.DEFAULT_MAX_FRAMES_PER_VIDEO)
+            scene_threshold = extraction_settings.get('scene_threshold', settings.DEFAULT_SCENE_CHANGE_THRESHOLD)
+        elif settings.FRAME_EXTRACTION_MODE == "testing":
+            # Standard testing mode: 1 FPS
+            frames_per_second = settings.DEFAULT_FRAMES_PER_SECOND  # 1.0 FPS
+            max_frames = settings.DEFAULT_MAX_FRAMES_PER_VIDEO  # 120 frames
+            scene_threshold = settings.DEFAULT_SCENE_CHANGE_THRESHOLD  # 0.2
+        else:
+            # Production mode: use quick preset
+            preset = settings.FRAME_EXTRACTION_PRESETS["quick"]
+            frames_per_second = preset["fps"]
+            max_frames = preset["max_frames"]
+            scene_threshold = preset["scene_threshold"]
+        
+        # Calculate interval and target frames
+        interval_seconds = 1.0 / frames_per_second
+        target_frames = min(max_frames, int(duration_seconds * frames_per_second))
+        
+        # Update instance scene change threshold for this extraction
+        self.min_scene_change_threshold = scene_threshold
         
         return {
             "method": "interval_based",
             "interval_seconds": interval_seconds,
+            "frames_per_second": frames_per_second,
             "target_frames": max(5, target_frames),  # Minimum 5 frames
+            "max_frames": max_frames,
+            "scene_threshold": scene_threshold,
             "duration_seconds": duration_seconds,
             "scene_detection": True,  # Enable basic scene change detection
-            "focus_areas": ["email_interface", "wms_forms", "data_entry"]  # Logistics focus
+            "focus_areas": ["email_interface", "wms_forms", "data_entry"],  # Logistics focus
+            "extraction_mode": settings.FRAME_EXTRACTION_MODE,
+            "estimated_frame_count": target_frames,
+            "estimated_cost": target_frames * settings.COST_PER_GPT4V_REQUEST
         }
     
     def _convert_webm_if_needed(self, video_path: str) -> str:

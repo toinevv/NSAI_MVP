@@ -8,7 +8,7 @@
 export const API_CONFIG = {
   BASE_URL: import.meta.env.VITE_API_URL || 'http://localhost:8000',
   VERSION: import.meta.env.VITE_API_VERSION || 'v1',
-  TIMEOUT: parseInt(import.meta.env.VITE_API_TIMEOUT || '30000'), // 30 seconds
+  TIMEOUT: parseInt(import.meta.env.VITE_API_TIMEOUT || '300000'), // 5 minutes - GPT-4V analysis can take time
 } as const
 
 // Get full API URL for a given path

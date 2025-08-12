@@ -32,6 +32,23 @@ export interface ResultsApiResponse {
     automation_opportunities: any[]
     time_analysis: any
     insights: any[]
+    workflow_chart?: {
+      nodes: Array<{
+        id: string
+        label: string
+        type: 'application' | 'action' | 'data' | 'decision'
+        metadata?: {
+          time?: string
+          application?: string
+        }
+      }>
+      edges: Array<{
+        source: string
+        target: string
+        label?: string
+        type?: string
+      }>
+    }
   } | null
   message: string
 }

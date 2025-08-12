@@ -47,6 +47,24 @@ class Settings(BaseSettings):
     MAX_CONCURRENT_ANALYSES: int = 5
     COST_PER_GPT4V_REQUEST: float = 0.01
     
+    # Frame Extraction Configuration
+    FRAME_EXTRACTION_MODE: str = "testing"  # "production" or "testing"
+    
+    # Advanced Frame Extraction Settings (configurable via API)
+    DEFAULT_FRAMES_PER_SECOND: float = 1.0  # 1 FPS standard for testing
+    MIN_FRAMES_PER_SECOND: float = 0.1      # Minimum allowed FPS
+    MAX_FRAMES_PER_SECOND: float = 3.0      # Maximum allowed FPS (cost control)
+    DEFAULT_SCENE_CHANGE_THRESHOLD: float = 0.2  # Scene change sensitivity
+    DEFAULT_MAX_FRAMES_PER_VIDEO: int = 120  # Maximum frames per video
+    
+    # Quality Presets for Frame Extraction
+    FRAME_EXTRACTION_PRESETS: dict = {
+        "quick": {"fps": 0.33, "max_frames": 50, "scene_threshold": 0.3},    # $0.50 for 150s
+        "standard": {"fps": 1.0, "max_frames": 120, "scene_threshold": 0.2}, # $1.20 for 120s  
+        "detailed": {"fps": 2.0, "max_frames": 200, "scene_threshold": 0.15}, # $2.00 for 100s
+        "forensic": {"fps": 3.0, "max_frames": 300, "scene_threshold": 0.1}   # $3.00 for 100s
+    }
+    
     # Recording Settings (August Plan Specifications)
     RECORDING_FPS: int = 2  # 2 FPS as per August plan
     MAX_RECORDING_DURATION_MINUTES: int = 30

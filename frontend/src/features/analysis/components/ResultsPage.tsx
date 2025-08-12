@@ -387,9 +387,9 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({ sessionId, onBack }) =
             
             {activeTab === 'workflow' && (
               <div className="min-h-[600px]">
-                {analysisResults.workflows && analysisResults.workflows.length > 0 ? (
+                {analysisResults.workflow_chart?.nodes && analysisResults.workflow_chart.nodes.length > 0 ? (
                   <DynamicWorkflowChart
-                    workflowData={analysisResults.workflows}
+                    data={analysisResults.workflow_chart}
                     className="h-full"
                   />
                 ) : (

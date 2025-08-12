@@ -12,7 +12,7 @@ from typing import List, Optional, Dict, Any
 import logging
 
 from app.core.database import get_db
-from app.models.database import RecordingSession, VideoChunk
+from app.models.database import RecordingSession, VideoChunk, AnalysisResult
 from app.schemas.recording import (
     RecordingStartRequest, RecordingStartResponse,
     VideoChunkUploadRequest, ChunkUploadResponse,
@@ -444,8 +444,22 @@ async def list_recordings(
         offset = (page - 1) * page_size
         recordings = query.order_by(RecordingSession.created_at.desc()).offset(offset).limit(page_size).all()
         
+        # Build response with analysis status
+        recording_responses = []
+        for recording in recordings:
+            # Check if recording has completed analysis
+            analysis_exists = db.query(AnalysisResult).filter(
+                AnalysisResult.session_id == str(recording.id),
+                AnalysisResult.status == "completed"
+            ).first() is not None
+            
+            # Create response object
+            recording_response = RecordingResponse.from_orm(recording)
+            recording_response.has_analysis = analysis_exists
+            recording_responses.append(recording_response)
+        
         return RecordingListResponse(
-            recordings=[RecordingResponse.from_orm(r) for r in recordings],
+            recordings=recording_responses,
             total=total,
             page=page,
             page_size=page_size,
@@ -603,8 +617,8 @@ async def queue_recording_analysis(recording_id: str):
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 f"{settings.API_BASE_URL}/api/v1/analysis/{recording_id}/start",
-                json={"analysis_type": "full"},
-                timeout=30.0
+                json={"analysis_type": "natural"},  # Updated to use natural format
+                timeout=300.0  # 5 minutes - GPT-4V can take 2-4 minutes for complex analysis
             )
             
             if response.status_code == 200:
@@ -613,5 +627,7 @@ async def queue_recording_analysis(recording_id: str):
             else:
                 logger.error(f"Failed to start analysis for recording {recording_id}: {response.status_code} - {response.text}")
                 
+    except httpx.ReadTimeout:
+        logger.error(f"Analysis timeout for recording {recording_id} - GPT-4V took longer than 5 minutes. Consider reducing frame count or splitting analysis.")
     except Exception as e:
         logger.error(f"Background analysis task failed for recording {recording_id}: {e}", exc_info=True)

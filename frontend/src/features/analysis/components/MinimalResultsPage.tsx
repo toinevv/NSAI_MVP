@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { CheckCircle, Clock, AlertCircle, Brain, Zap, DollarSign, ArrowLeft, RefreshCw, TrendingUp, GitBranch, FileText, Code, BarChart3 } from 'lucide-react'
+import { CheckCircle, AlertCircle, Brain, ArrowLeft, RefreshCw, GitBranch, FileText, Code, BarChart3 } from 'lucide-react'
 import { resultsAPI, type ResultsApiResponse, type RawAnalysisResponse, getResultsErrorMessage } from '../../results/services/resultsAPI'
 import { DynamicWorkflowChart } from './DynamicWorkflowChart'
 
@@ -51,14 +51,6 @@ export const MinimalResultsPage: React.FC<MinimalResultsPageProps> = ({ sessionI
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
-  const formatCurrency = (amount: number): string => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount)
-  }
 
   if (loading) {
     return (
@@ -117,7 +109,7 @@ export const MinimalResultsPage: React.FC<MinimalResultsPageProps> = ({ sessionI
   }
 
   const { results: analysisResults } = apiResponse
-  const { recording_info, analysis_info, summary, automation_opportunities, insights } = analysisResults
+  const { recording_info, analysis_info, insights } = analysisResults
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -279,34 +271,33 @@ export const MinimalResultsPage: React.FC<MinimalResultsPageProps> = ({ sessionI
           )}
         </div>
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
-            <div className="flex items-center space-x-2 mb-6">
-              <GitBranch className="w-6 h-6 text-purple-600" />
-              <h3 className="text-xl font-semibold text-gray-900">Workflow Visualization</h3>
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+              <div className="flex items-center space-x-2 mb-6">
+                <GitBranch className="w-6 h-6 text-purple-600" />
+                <h3 className="text-xl font-semibold text-gray-900">Workflow Visualization</h3>
+              </div>
+              
+              {analysisResults.workflow_chart?.nodes && analysisResults.workflow_chart.nodes.length > 0 ? (
+                <div>
+                  <div className="min-h-[400px] rounded-lg border border-gray-200 overflow-hidden mb-4">
+                    <DynamicWorkflowChart
+                      data={analysisResults.workflow_chart}
+                      className="h-full w-full"
+                    />
+                  </div>
+                  <p className="text-sm text-gray-500">
+                    Interactive workflow map showing your process flow and automation opportunities
+                  </p>
+                </div>
+              ) : (
+                <div className="text-center py-12 text-gray-500">
+                  <GitBranch className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                  <p className="text-lg mb-2">No workflow chart available</p>
+                  <p className="text-sm">Workflow visualization data was not generated for this analysis</p>
+                </div>
+              )}
             </div>
             
-            {analysisResults.workflows && analysisResults.workflows.length > 0 ? (
-              <div>
-                <div className="min-h-[400px] rounded-lg border border-gray-200 overflow-hidden mb-4">
-                  <DynamicWorkflowChart
-                    workflowData={analysisResults.workflows}
-                    className="h-full w-full"
-                  />
-                </div>
-                <p className="text-sm text-gray-500">
-                  Interactive workflow map showing your process flow and automation opportunities
-                </p>
-              </div>
-            ) : (
-              <div className="text-center py-12 text-gray-500">
-                <GitBranch className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                <p className="text-lg mb-2">No workflow chart available</p>
-                <p className="text-sm">Workflow visualization data was not generated for this analysis</p>
-              </div>
-            )}
-          </div>
-        )}
-
             {/* Automation Opportunities - Removed for Layer 2 focus */}
             {/* Will add back in Layer 3 once analysis is solid */}
           </div>
@@ -494,7 +485,34 @@ export const MinimalResultsPage: React.FC<MinimalResultsPageProps> = ({ sessionI
         
         {/* Workflow Chart Tab */}
         {activeTab === 'chart' && (
-
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+            <div className="flex items-center space-x-2 mb-6">
+              <GitBranch className="w-6 h-6 text-purple-600" />
+              <h3 className="text-xl font-semibold text-gray-900">Workflow Visualization</h3>
+            </div>
+            
+            {analysisResults.workflow_chart?.nodes && analysisResults.workflow_chart.nodes.length > 0 ? (
+              <div>
+                <div className="min-h-[400px] rounded-lg border border-gray-200 overflow-hidden mb-4">
+                  <DynamicWorkflowChart
+                    data={analysisResults.workflow_chart}
+                    className="h-full w-full"
+                  />
+                </div>
+                <p className="text-sm text-gray-500">
+                  Interactive workflow map showing your process flow and automation opportunities
+                </p>
+              </div>
+            ) : (
+              <div className="text-center py-12 text-gray-500">
+                <GitBranch className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                <p className="text-lg mb-2">No workflow chart available</p>
+                <p className="text-sm">Workflow visualization data was not generated for this analysis</p>
+              </div>
+            )}
+          </div>
+        )}
+        
         {/* Simple Analysis Info - Only show on overview tab */}
         {activeTab === 'overview' && (
           <div className="bg-gray-100 rounded-lg p-6 mt-8">

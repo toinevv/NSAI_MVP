@@ -30,7 +30,10 @@ class GPT4VClient:
             logger.warning("OpenAI API key not configured")
             self.client = None
         else:
-            self.client = OpenAI(api_key=settings.OPENAI_API_KEY)
+            self.client = OpenAI(
+                api_key=settings.OPENAI_API_KEY,
+                timeout=300.0  # 5 minutes for vision analysis
+            )
         
         # Configuration for GPT-4V
         self.model = settings.GPT4V_MODEL

@@ -34,7 +34,8 @@ class AnalysisOrchestrator:
         self,
         session_id: UUID,
         duration_seconds: int,
-        analysis_type: str = "full"
+        analysis_type: str = "full",
+        frame_extraction_settings: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
         Complete analysis pipeline for a recording
@@ -63,7 +64,8 @@ class AnalysisOrchestrator:
             logger.info(f"Step 1: Extracting frames from recording {session_id}")
             frame_result = await self.frame_extractor.extract_frames_from_recording(
                 session_id,
-                duration_seconds
+                duration_seconds,
+                frame_extraction_settings
             )
             
             if "error" in frame_result:
@@ -166,10 +168,13 @@ class AnalysisOrchestrator:
                 "summary": parsed_result.get("summary", {}),
                 "confidence_score": parsed_result.get("confidence_score", 0),
                 "pipeline_status": pipeline_status,
+                # Include raw GPT-4V response for frontend debugging
+                "raw_gpt_response": parsed_result.get("raw_gpt_response") or gpt_result.get("analysis", {}),
                 "metadata": {
                     "gpt_model": settings.GPT4V_MODEL,
                     "analysis_timestamp": end_time.isoformat(),
                     "tokens_used": gpt_result.get("usage", {}).get("total_tokens", 0),
+                    "token_usage": gpt_result.get("usage", {}),  # Full token usage for frontend
                     "processing_cost": self._calculate_total_cost(
                         len(frames),
                         gpt_result.get("usage", {}).get("total_tokens", 0)

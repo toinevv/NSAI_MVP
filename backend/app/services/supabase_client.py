@@ -9,6 +9,7 @@ from uuid import UUID
 import logging
 from datetime import datetime, timezone
 from supabase import create_client, Client
+from supabase.lib.client_options import ClientOptions
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -20,9 +21,19 @@ class SupabaseClient:
         if not settings.SUPABASE_URL or not settings.SUPABASE_SERVICE_KEY:
             raise ValueError("Supabase credentials not configured")
         
+        # Create client with timeout configuration
+        options = ClientOptions(
+            schema='public',
+            auto_refresh_token=True,
+            persist_session=True,
+            storage_client_timeout=300,  # 5 minute timeout for storage operations
+            postgrest_client_timeout=300  # Also increase database operation timeout
+        )
+        
         self.client: Client = create_client(
             settings.SUPABASE_URL,
-            settings.SUPABASE_SERVICE_KEY
+            settings.SUPABASE_SERVICE_KEY,
+            options=options
         )
     
     # Storage Operations
@@ -48,6 +59,10 @@ class SupabaseClient:
         try:
             # Construct file path: recordings/{session_id}/chunks/chunk_{index}.webm
             file_path = f"recordings/{session_id}/chunks/chunk_{chunk_index:04d}.webm"
+            
+            # Log upload attempt
+            file_size_mb = len(file_content) / (1024 * 1024)
+            logger.info(f"Uploading chunk {chunk_index} for session {session_id}: {file_size_mb:.2f} MB")
             
             # Upload to Supabase Storage with upsert mode to handle existing files
             result = self.client.storage.from_(settings.SUPABASE_STORAGE_BUCKET).upload(
@@ -118,10 +133,22 @@ class SupabaseClient:
             }
             
         except Exception as e:
-            logger.error(f"Error uploading chunk: {e}")
+            error_msg = str(e)
+            logger.error(f"Error uploading chunk: {error_msg}")
+            
+            # Check for timeout errors
+            if "timeout" in error_msg.lower() or "timed out" in error_msg.lower():
+                file_size_mb = len(file_content) / (1024 * 1024) if 'file_content' in locals() else 0
+                logger.warning(f"Upload timeout for chunk {chunk_index} ({file_size_mb:.2f} MB). Consider chunking into smaller pieces.")
+                return {
+                    "success": False,
+                    "error": f"Upload timeout - file too large ({file_size_mb:.2f} MB). Try smaller chunks or check network.",
+                    "file_path": None
+                }
+            
             return {
                 "success": False,
-                "error": str(e),
+                "error": error_msg,
                 "file_path": None
             }
     

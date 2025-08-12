@@ -228,9 +228,6 @@ class ResultParser:
         insights = analysis.get("patterns", [])
         if not isinstance(insights, list):
             insights = []
-            
-        # Extract workflow chart data
-        workflow_chart = analysis.get("workflow_chart", {})
         
         # Extract confidence
         confidence = self._parse_confidence(
@@ -254,7 +251,6 @@ class ResultParser:
             "metadata": gpt_response.get("metadata", {}),
             "usage": gpt_response.get("usage", {}),
             "raw_gpt_response": analysis,
-            "workflow_chart": workflow_chart,  # Chart data for visualization
             "format": "natural"  # Flag to indicate natural format
         }
     

@@ -35,6 +35,7 @@ class FrameExtractionResponse(BaseModel):
     
 class StartAnalysisRequest(BaseModel):
     analysis_type: str = "full"  # Options: "full", "quick", "email_wms"
+    frame_extraction_settings: Optional[Dict[str, Any]] = None  # Custom frame extraction settings
 
 @router.post("/{recording_id}/start")
 async def start_analysis(
@@ -98,7 +99,8 @@ async def start_analysis(
             run_full_analysis_pipeline,
             str(analysis.id),
             str(recording_id),
-            recording.duration_seconds or 0
+            recording.duration_seconds or 0,
+            request.frame_extraction_settings
         )
         
         # Get orchestrator to estimate cost
@@ -125,7 +127,8 @@ async def start_analysis(
 async def run_full_analysis_pipeline(
     analysis_id: str,
     recording_id: str,
-    duration_seconds: int
+    duration_seconds: int,
+    frame_extraction_settings: Optional[Dict[str, Any]] = None
 ):
     """
     Background task to run complete analysis pipeline
@@ -156,11 +159,12 @@ async def run_full_analysis_pipeline(
                 db.commit()
             return
         
-        # Run complete analysis pipeline
+        # Run complete analysis pipeline using natural format for frontend compatibility
         result = await orchestrator.analyze_recording(
             UUID(recording_id),
             duration_seconds,
-            analysis_type="full"
+            analysis_type="natural",
+            frame_extraction_settings=frame_extraction_settings
         )
         
         # Update analysis record with results
@@ -173,6 +177,12 @@ async def run_full_analysis_pipeline(
                 analysis.status = "completed"
                 analysis.frames_analyzed = result.get("frame_analysis", {}).get("frames_analyzed", 0)
                 analysis.structured_insights = result
+                
+                # Store raw GPT-4V response for debugging and frontend raw tab
+                raw_gpt_response = result.get("raw_gpt_response")
+                if raw_gpt_response:
+                    analysis.raw_gpt_response = raw_gpt_response
+                
                 analysis.confidence_score = result.get("confidence_score", 0)
                 analysis.analysis_cost = result.get("metadata", {}).get("processing_cost", 0)
                 

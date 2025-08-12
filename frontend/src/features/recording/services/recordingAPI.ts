@@ -267,14 +267,21 @@ class RecordingAPI {
     formData.append('chunk_file', chunkFile, `chunk_${chunkIndex}.webm`)
     // Note: chunk_index is now sent as query parameter instead of FormData
     
+    // Create AbortController for timeout handling
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 300000) // 5 minutes timeout for large uploads
+    
     try {
       const response = await fetch(
         `${this.baseUrl}/${recordingId}/chunks?chunk_index=${chunkIndex}`,
         {
           method: 'POST',
           body: formData, // Don't set Content-Type header for FormData
+          signal: controller.signal,
         }
       )
+      
+      clearTimeout(timeoutId)
       
       if (!response.ok) {
         let errorMessage = `Chunk upload failed: HTTP ${response.status}`

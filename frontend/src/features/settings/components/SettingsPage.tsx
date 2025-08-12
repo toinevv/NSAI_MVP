@@ -6,8 +6,11 @@
 import React, { useState } from 'react'
 import { Settings, Video, Brain, Save, RotateCcw, Info, DollarSign, Clock, Film, Sliders } from 'lucide-react'
 import { useSettings } from '../../../contexts/SettingsContext'
-import { FramePresetKey, RecordingPresetKey } from '../../../types/settings'
 import { FRAME_EXTRACTION_PRESETS, RECORDING_QUALITY_PRESETS } from '../../../constants/settings'
+
+// Define types locally
+type FramePresetKey = keyof typeof FRAME_EXTRACTION_PRESETS
+type RecordingPresetKey = keyof typeof RECORDING_QUALITY_PRESETS
 
 export const SettingsPage: React.FC = () => {
   // Use global settings context

@@ -376,10 +376,14 @@ async def get_raw_analysis_data(
             "error_message": analysis.error_message
         }
         
-        # Extract token usage from raw response if available
+        # Extract token usage from multiple sources
         token_usage = {}
+        # First try raw GPT response
         if raw_gpt_response and "usage" in raw_gpt_response:
             token_usage = raw_gpt_response["usage"]
+        # Fall back to structured insights metadata
+        elif structured_insights and "metadata" in structured_insights and "token_usage" in structured_insights["metadata"]:
+            token_usage = structured_insights["metadata"]["token_usage"]
         
         # Build metadata
         metadata = {
@@ -392,10 +396,21 @@ async def get_raw_analysis_data(
             "analysis_id": str(analysis.id)
         }
         
+        # Structure the raw GPT response for frontend compatibility
+        formatted_raw_response = {
+            "analysis": raw_gpt_response,
+            "usage": token_usage,
+            "metadata": {
+                "model": processing_info.get("gpt_version", "gpt-4o"),
+                "timestamp": processing_info.get("processing_completed_at"),
+                "cost": processing_info.get("analysis_cost", 0)
+            }
+        }
+
         return {
             "session_id": session_id,
             "status": analysis.status,
-            "raw_gpt_response": raw_gpt_response,
+            "raw_gpt_response": formatted_raw_response,
             "structured_insights": structured_insights,
             "processing_info": processing_info,
             "metadata": metadata,

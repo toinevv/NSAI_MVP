@@ -75,6 +75,9 @@ class RecordingResponse(BaseModel):
     completed_at: Optional[datetime]
     updated_at: datetime
     
+    # Analysis status
+    has_analysis: Optional[bool] = None
+    
     # Include related data
     video_chunks: Optional[List[VideoChunkResponse]] = None
 

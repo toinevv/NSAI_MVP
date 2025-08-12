@@ -5,16 +5,39 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import {
-  AppSettings,
-  FrameExtractionSettings,
-  RecordingSettings,
-  SettingsContextType
-} from '../types/settings'
-import {
   DEFAULT_SETTINGS,
   FRAME_EXTRACTION_PRESETS,
   RECORDING_QUALITY_PRESETS
 } from '../constants/settings'
+
+// Define types directly in this file to avoid import issues
+export interface FrameExtractionSettings {
+  fps: number
+  max_frames: number
+  scene_threshold: number
+  preset?: string
+}
+
+export interface RecordingSettings {
+  quality: string
+  fps: number
+  chunk_duration: number
+  max_duration: number
+}
+
+export interface AppSettings {
+  frameExtraction: FrameExtractionSettings
+  recording: RecordingSettings
+}
+
+interface SettingsContextType {
+  settings: AppSettings
+  updateFrameExtractionSettings: (settings: Partial<FrameExtractionSettings>) => void
+  updateRecordingSettings: (settings: Partial<RecordingSettings>) => void
+  resetToDefaults: () => void
+  getEstimatedFrames: (videoDuration: number) => number
+  getEstimatedCost: (videoDuration: number) => number
+}
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined)
 

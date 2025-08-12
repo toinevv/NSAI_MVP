@@ -174,19 +174,10 @@ Please respond with JSON in the following format:
   ],
   
   "applications": {
-    "Chrome - Gmail": {
-      "purpose": "Receiving orders and processing customer requests",
-      "timePercentage": 35,
-      "timeSeconds": 120,
-      "actions": ["Reading emails", "Copying customer information", "Composing responses"],
-      "keyFunctions": "Primary communication tool for order intake"
-    },
-    "Excel": {
-      "purpose": "Data entry and order tracking",
+    "Gmail": {
+      "purpose": "Receiving orders and sending confirmations",
       "timePercentage": 25,
-      "timeSeconds": 90,
-      "actions": ["Data entry", "Formula calculations", "Status updates"],
-      "keyFunctions": "Central spreadsheet for order management"
+      "actions": ["Read emails", "Copy order details", "Mark as processed"]
     }
   },
   
@@ -212,60 +203,13 @@ Please respond with JSON in the following format:
     "potentialTimeSavedDailyHours": 2.5
   },
   
-  "workflow_chart": {
-    "nodes": [
-      {
-        "id": "gmail",
-        "label": "Gmail",
-        "type": "application",
-        "metadata": {
-          "time": "2m 30s",
-          "application": "Gmail"
-        }
-      },
-      {
-        "id": "copy_order",
-        "label": "Copy Order Info",
-        "type": "action",
-        "metadata": {
-          "time": "30s"
-        }
-      },
-      {
-        "id": "excel",
-        "label": "Excel Spreadsheet",
-        "type": "application",
-        "metadata": {
-          "time": "1m 45s",
-          "application": "Excel"
-        }
-      }
-    ],
-    "edges": [
-      {
-        "source": "gmail",
-        "target": "copy_order",
-        "label": "Extract order data"
-      },
-      {
-        "source": "copy_order", 
-        "target": "excel",
-        "label": "Enter in tracking sheet"
-      }
-    ]
-  },
-  
   "confidence": 0.85
 }
 
 Key guidelines:
-- Track time spent in each application accurately (seconds + percentage)
-- Focus on workflow patterns, not specific personal details
-- Provide actionable insights for time savings
-- Be specific about what applications are being used (include browser names)
-- Calculate percentages that add up to roughly 100% of total time
-- Generate workflow_chart with nodes (applications/actions) and edges (flow between them)
-- Use node types: 'application', 'action', 'data', 'decision'"""
+- Be specific and descriptive
+- Focus on understanding the person's actual work
+- Suggest practical, realistic improvements"""
 
 SIMPLE_NATURAL_ANALYSIS = """Watch these screenshots and explain what the person is doing.
 

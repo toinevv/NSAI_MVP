@@ -5,7 +5,7 @@
  */
 
 import React, { useState, useEffect } from 'react'
-import { Film, Clock, HardDrive, Calendar, ChevronRight, RefreshCw, Eye, Trash2, Shield, BarChart3, Brain, Zap } from 'lucide-react'
+import { Film, Clock, HardDrive, Calendar, ChevronRight, RefreshCw, Trash2, Shield, BarChart3, Brain, Zap } from 'lucide-react'
 import { AnalysisButton } from './AnalysisButton'
 // import { WorkflowAnalysis } from './WorkflowAnalysis' // Removed - using unified results page
 import { PrivacyModal } from '../../../components/PrivacyModal'
@@ -25,9 +25,10 @@ interface Recording {
 
 interface RecordingsListProps {
   onViewResults?: (sessionId: string) => void
+  onNavigateToSettings?: () => void
 }
 
-export const RecordingsList: React.FC<RecordingsListProps> = ({ onViewResults }) => {
+export const RecordingsList: React.FC<RecordingsListProps> = ({ onViewResults, onNavigateToSettings }) => {
   const [recordings, setRecordings] = useState<Recording[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -90,8 +91,6 @@ export const RecordingsList: React.FC<RecordingsListProps> = ({ onViewResults })
   const handleStartAnalysis = (recordingId: string, analysisType: 'quick' | 'full') => {
     console.log(`Starting ${analysisType} analysis for recording:`, recordingId)
     setSelectedRecording(recordingId)
-    setActiveAnalysisId(recordingId)
-    setShowResults(false)
     // The AnalysisButton component will handle the actual analysis start
   }
 
@@ -329,8 +328,14 @@ export const RecordingsList: React.FC<RecordingsListProps> = ({ onViewResults })
               <div className="border-t border-gray-200 p-6 bg-gray-50">
                 <AnalysisButton
                   recordingId={recording.id}
+                  videoDuration={recording.duration_seconds}
+                  onNavigateToSettings={onNavigateToSettings}
                   onAnalysisComplete={(analysisId) => {
-                    console.log(`Analysis ${analysisId} started for recording ${recording.id}`)
+                    console.log(`Analysis ${analysisId} completed for recording ${recording.id}`)
+                    // Refresh recordings list to update analysis status (with small delay for DB consistency)
+                    setTimeout(() => {
+                      fetchRecordings()
+                    }, 1000)
                     // Navigate to unified results page instead of showing modal
                     onViewResults?.(recording.id)
                   }}
