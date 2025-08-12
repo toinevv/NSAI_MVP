@@ -8,11 +8,13 @@ import {
   AppSettings,
   FrameExtractionSettings,
   RecordingSettings,
-  SettingsContextType,
+  SettingsContextType
+} from '../types/settings'
+import {
   DEFAULT_SETTINGS,
   FRAME_EXTRACTION_PRESETS,
   RECORDING_QUALITY_PRESETS
-} from '../types/settings'
+} from '../constants/settings'
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined)
 
