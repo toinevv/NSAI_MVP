@@ -283,7 +283,7 @@ class FrameExtractor:
             "max_frames": max_frames,
             "scene_threshold": scene_threshold,
             "duration_seconds": duration_seconds,
-            "scene_detection": True,  # Enable basic scene change detection
+            "scene_detection": False,  # DISABLED - scene detection filters out too many frames from UI recordings
             "focus_areas": ["email_interface", "wms_forms", "data_entry"],  # Logistics focus
             "extraction_mode": settings.FRAME_EXTRACTION_MODE,
             "estimated_frame_count": target_frames,
@@ -359,22 +359,36 @@ class FrameExtractor:
         
         try:
             # Get video properties
-            fps = cap.get(cv2.CAP_PROP_FPS) or 2  # Default to 2 FPS if not available
+            fps = cap.get(cv2.CAP_PROP_FPS)
+            if fps <= 0 or fps > 120:  # Validate FPS is reasonable
+                logger.warning(f"Invalid FPS detected: {fps}, using fallback calculation")
+                fps = 30  # Assume standard 30 FPS for screen recordings
+            
             total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
             
             if total_frames == 0:
                 logger.error("Video has no frames")
                 return []
             
-            # Calculate frame indices to extract
-            interval_frames = int(fps * strategy["interval_seconds"])
-            frame_indices = []
+            # Calculate actual video duration
+            video_duration = total_frames / fps
+            logger.info(f"Video properties: {total_frames} frames @ {fps:.1f} FPS = {video_duration:.1f}s duration")
             
-            # Generate frame indices based on interval
-            current_frame = 0
-            while current_frame < total_frames and len(frame_indices) < strategy["target_frames"]:
-                frame_indices.append(current_frame)
-                current_frame += interval_frames
+            # Calculate frame indices to extract based on time intervals
+            interval_seconds = strategy["interval_seconds"]
+            target_frames = strategy["target_frames"]
+            
+            # Generate frame indices based on time intervals
+            frame_indices = []
+            for i in range(target_frames):
+                time_position = i * interval_seconds
+                if time_position >= video_duration:
+                    break
+                frame_index = int(time_position * fps)
+                if frame_index < total_frames:
+                    frame_indices.append(frame_index)
+            
+            logger.info(f"Calculated {len(frame_indices)} frame indices for extraction")
             
             # Extract frames at calculated indices
             prev_frame = None
@@ -410,6 +424,18 @@ class FrameExtractor:
                     break
             
             logger.info(f"Extracted {len(frames_data)} frames from {len(frame_indices)} candidates")
+            
+            # Validate extraction performance
+            expected_frames = min(strategy["target_frames"], int(video_duration))
+            extraction_rate = len(frames_data) / expected_frames if expected_frames > 0 else 0
+            
+            if extraction_rate < 0.5:  # Less than 50% of expected frames
+                logger.error(f"CRITICAL: Frame extraction underperformed! Got {len(frames_data)}/{expected_frames} frames ({extraction_rate:.1%})")
+                logger.error(f"Video duration: {video_duration:.1f}s, Target FPS: {strategy['frames_per_second']}, Interval: {interval_seconds}s")
+            elif extraction_rate < 0.8:  # Less than 80% of expected frames
+                logger.warning(f"Frame extraction below target: {len(frames_data)}/{expected_frames} frames ({extraction_rate:.1%})")
+            else:
+                logger.info(f"Frame extraction successful: {len(frames_data)}/{expected_frames} frames ({extraction_rate:.1%})")
             
         finally:
             cap.release()
