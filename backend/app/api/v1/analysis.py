@@ -260,6 +260,64 @@ async def run_full_analysis_pipeline(
                     logger.info(f"💰 SUMMARY: {opportunities_count} opportunities, {time_savings}h/week savings, ${cost_savings}/year")
                 else:
                     logger.warning(f"⚠️ NO SUMMARY: No summary data found in result")
+                
+                # CRITICAL FIX: Create individual AutomationOpportunity records
+                logger.info(f"🎯 CREATING AUTOMATION OPPORTUNITY RECORDS")
+                automation_opportunities = result.get("automation_opportunities", [])
+                
+                if isinstance(automation_opportunities, list) and automation_opportunities:
+                    logger.info(f"📝 Found {len(automation_opportunities)} automation opportunities to create")
+                    
+                    from app.models.database import AutomationOpportunity
+                    
+                    created_opportunities = 0
+                    for i, opportunity_data in enumerate(automation_opportunities):
+                        try:
+                            # Extract opportunity details
+                            workflow_type = opportunity_data.get("workflow_type", "Unknown")
+                            description = opportunity_data.get("description", "")
+                            
+                            # Convert time values to standard formats
+                            time_per_occurrence_minutes = opportunity_data.get("time_per_occurrence_minutes", 0)
+                            time_per_occurrence_seconds = int(time_per_occurrence_minutes * 60)
+                            
+                            frequency_daily = opportunity_data.get("frequency_daily", 1)
+                            time_saved_weekly_hours = opportunity_data.get("time_saved_weekly_hours", 0)
+                            cost_saved_annually = opportunity_data.get("cost_saved_annually", 0)
+                            
+                            # Create AutomationOpportunity record
+                            opportunity = AutomationOpportunity(
+                                analysis_id=analysis.id,
+                                session_id=analysis.session_id,
+                                opportunity_type=workflow_type,
+                                title=f"{workflow_type} Automation",
+                                description=description,
+                                workflow_steps=[],  # TODO: Extract workflow steps if available
+                                current_time_per_occurrence_seconds=time_per_occurrence_seconds,
+                                occurrences_per_day=frequency_daily,
+                                automation_complexity=opportunity_data.get("implementation_complexity", "medium"),
+                                implementation_effort_hours=24,  # Default estimate
+                                estimated_cost_savings_monthly=round(cost_saved_annually / 12, 2),
+                                estimated_implementation_cost=2000.00,  # Default estimate
+                                roi_percentage=round((cost_saved_annually / 2000.00) * 100, 2) if cost_saved_annually > 0 else 0,
+                                payback_period_days=int((2000.00 / (cost_saved_annually / 365)) if cost_saved_annually > 0 else 365),
+                                confidence_score=confidence_score,
+                                priority=opportunity_data.get("priority_score", "medium"),
+                                record_metadata=opportunity_data  # Store full opportunity data
+                            )
+                            
+                            db.add(opportunity)
+                            created_opportunities += 1
+                            logger.info(f"✅ OPPORTUNITY #{i+1}: {workflow_type} - ${cost_saved_annually}/year savings")
+                            
+                        except Exception as e:
+                            logger.error(f"❌ OPPORTUNITY #{i+1} FAILED: {e}")
+                            continue
+                    
+                    logger.info(f"🎯 CREATED {created_opportunities} automation opportunity records")
+                    
+                else:
+                    logger.warning(f"⚠️ NO AUTOMATION OPPORTUNITIES: Found {type(automation_opportunities)} with {len(automation_opportunities) if isinstance(automation_opportunities, list) else 'N/A'} items")
             else:
                 logger.error(f"❌ FAILED RESULT: Analysis failed, updating status")
                 analysis.status = "failed"
