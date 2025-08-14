@@ -1,0 +1,405 @@
+---
+alwaysApply: true
+---
+# NewSystem.AI August MVP Plan & Architecture
+
+## Executive Summary
+
+This document outlines the focused architecture and week-by-week roadmap for delivering NewSystem.AI's MVP in August 2024. We maintain the vision of the full architecture while making pragmatic decisions to ship a valuable product in 30 days.
+
+**Core MVP Goal**: Build a screen recording platform that uses GPT-4V to identify automation opportunities in warehouse workflows, delivering clear ROI within 4 weeks.
+
+---
+
+## August MVP Scope
+
+### What We're Building (Must Have)
+✅ **Web-based screen recording** (no browser extension yet)  
+✅ **GPT-4V workflow analysis** with smart frame selection  
+✅ **Clear ROI report** showing time/cost savings  
+✅ **Simple results dashboard** with actionable insights  
+✅ **Lucidchart integration** for workflow visualization & editing  
+✅ **Basic export functionality** (CSV/JSON)  
+
+### What We're Deferring (Future)
+❌ Custom flow chart development (using Lucidchart instead)  
+❌ Browser extension (web recording is enough)  
+❌ Advanced privacy/PII detection (user warnings instead)  
+❌ PDF generation (well-formatted HTML is fine)  
+❌ Redis queue (PostgreSQL job queue works)  
+❌ Microservices (monolithic deployment)  
+
+---
+
+## Simplified Architecture for August
+
+### High-Level Architecture (MVP)
+
+```
+┌─────────────────── Web Application ─────────────────────┐
+│                                                         │
+│  ┌─────────────┐        ┌─────────────┐               │
+│  │  Recording  │        │   Results   │               │
+│  │    View     │        │  Dashboard  │               │
+│  └──────┬──────┘        └──────┬──────┘               │
+│         │                      │                        │
+└─────────┴──────────────────────┴────────────────────────┘
+          │                      │
+          ▼                      ▼
+┌───────────────── Monolithic Backend ────────────────────┐
+│                                                         │
+│   FastAPI Application                                  │
+│   ├── Recording Module                                 │
+│   ├── Analysis Module (GPT-4V)                        │
+│   ├── Results Module                                  │
+│   └── Background Jobs (in-process)                    │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+          │                      │
+          ▼                      ▼
+┌─────────────────┬───────────────────────┐
+│    Supabase     │    Supabase          │
+│    PostgreSQL   │    Storage (R2)      │
+└─────────────────┴───────────────────────┘
+```
+
+### Tech Stack (Simplified)
+
+**Frontend**
+- React + Vite (fast development)
+- Tailwind CSS (rapid styling)
+- Native MediaRecorder API (screen capture)
+- Simple fetch for API calls (no complex state management)
+
+**Backend**
+- FastAPI (single service)
+- PostgreSQL via Supabase (database + auth)
+- Background jobs with FastAPI BackgroundTasks
+- Supabase Storage for video files
+
+**Deployment**
+- Railway (single service deployment)
+- Environment variables for secrets
+- GitHub Actions for CI/CD
+
+---
+
+## Week-by-Week Roadmap
+
+### Week 1 (Aug 5-9): Recording Foundation
+**Goal**: Users can record their screen and uploads work reliably
+
+#### Monday-Tuesday: Project Setup
+- [ ] Initialize monorepo with React + FastAPI
+- [ ] Set up Supabase project (auth + database + storage)
+- [ ] Configure Railway deployment pipeline
+- [ ] Create basic UI shell with Tailwind
+
+#### Wednesday-Thursday: Recording Implementation
+- [ ] Implement MediaRecorder screen capture (2 FPS)
+- [ ] Build chunked upload system (5-second chunks)
+- [ ] Create recording status UI with clear feedback
+- [ ] Handle network failures gracefully
+
+#### Friday: Storage & Data Model
+- [ ] Design database schema (users, recordings, analysis)
+- [ ] Implement Supabase Storage integration
+- [ ] Build recording list/management UI
+- [ ] Manual testing of various recording scenarios
+
+**Deliverable**: Working screen recorder with reliable upload
+
+---
+
+### Week 2 (Aug 12-16): GPT-4V Analysis Pipeline
+**Goal**: Recordings are automatically analyzed for automation opportunities
+
+#### Monday-Tuesday: Frame Extraction
+- [ ] Build frame extraction service (1 frame/10 sec)
+- [ ] Implement smart keyframe selection algorithm
+- [ ] Optimize frame resolution for GPT-4V (1344x1344)
+- [ ] Create frame preview UI
+
+#### Wednesday-Thursday: GPT-4V Integration
+- [ ] Implement OpenAI client with retry logic
+- [ ] Design warehouse-specific prompts
+- [ ] Parse GPT-4V JSON responses
+- [ ] Track API costs per analysis
+
+#### Friday: Analysis Pipeline
+- [ ] Build background job system (using BackgroundTasks)
+- [ ] Connect recording completion → analysis trigger
+- [ ] Store analysis results with confidence scores
+- [ ] Show analysis status in UI
+
+**Deliverable**: Automated workflow analysis with cost tracking
+
+---
+
+### Week 3 (Aug 19-23): Results & Insights
+**Goal**: Users see clear value from the analysis
+
+#### Monday-Tuesday: Results Page
+- [ ] Design clean results layout (cards, not complex charts)
+- [ ] Show time spent per workflow step
+- [ ] Display automation opportunities list
+- [ ] Calculate and show time savings
+
+#### Wednesday-Thursday: ROI Calculations
+- [ ] Build cost analysis module
+- [ ] Create savings projection calculator
+- [ ] Design clear "before/after" comparison
+- [ ] Add confidence indicators
+
+#### Friday: Export & Sharing
+- [ ] Implement CSV export of results
+- [ ] Create shareable link functionality
+- [ ] Build simple HTML report template
+- [ ] Add "Email results" feature
+
+**Deliverable**: Clear, actionable insights with export options
+
+---
+
+### Week 4 (Aug 26-30): Polish & Launch Prep
+**Goal**: Production-ready MVP with great UX
+
+#### Monday-Tuesday: Error Handling & Edge Cases
+- [ ] Comprehensive error handling
+- [ ] Loading states and progress indicators
+- [ ] Empty states and helpful messages
+- [ ] Recording failure recovery
+
+#### Wednesday-Thursday: Performance & Testing
+- [ ] Optimize frame selection algorithm
+- [ ] Load test with 10 concurrent recordings
+- [ ] Fix any performance bottlenecks
+- [ ] User acceptance testing
+
+#### Friday: Launch Preparation
+- [ ] Create onboarding flow
+- [ ] Write user documentation
+- [ ] Set up monitoring (Sentry)
+- [ ] Deploy to production
+
+**Deliverable**: Polished MVP ready for first customers
+
+---
+
+## Critical Technical Decisions
+
+### 1. Monolithic Architecture (For Now)
+```python
+# Single FastAPI app with modular organization
+app/
+├── main.py              # FastAPI app
+├── routers/
+│   ├── recordings.py    # Recording endpoints
+│   ├── analysis.py      # Analysis endpoints
+│   └── results.py       # Results endpoints
+├── services/
+│   ├── recording.py     # Recording logic
+│   ├── gpt4v.py        # GPT-4V integration
+│   └── insights.py      # ROI calculations
+└── models/
+    └── database.py      # SQLAlchemy models
+```
+
+### 2. Simple Job Queue
+```python
+# Use FastAPI BackgroundTasks instead of Celery/Redis
+@router.post("/recordings/{id}/complete")
+async def complete_recording(
+    id: str,
+    background_tasks: BackgroundTasks
+):
+    background_tasks.add_task(analyze_recording, id)
+    return {"status": "analysis_queued"}
+```
+
+### 3. Smart Frame Selection
+```python
+def select_frames(duration_seconds: int) -> List[int]:
+    """Select ~10-15 frames per 5-minute recording"""
+    if duration_seconds < 60:
+        return [0, duration_seconds // 2]
+    
+    # 1 frame per 10 seconds, max 30 frames
+    interval = max(10, duration_seconds // 30)
+    return list(range(0, duration_seconds, interval))
+```
+
+### 4. Cost-Conscious GPT-4V Prompts
+```python
+ANALYSIS_PROMPT = """
+Analyze this warehouse operator workflow:
+
+1. What applications are being used?
+2. What repetitive patterns do you see?
+3. What specific steps could be automated?
+4. Estimate time spent on each activity.
+
+Return JSON:
+{
+  "workflows": [...],
+  "automation_opportunities": [...],
+  "time_breakdown": {...}
+}
+"""
+```
+
+---
+
+## MVP Database Schema (Simplified)
+
+```sql
+-- Essential tables only
+CREATE TABLE recordings (
+    id UUID PRIMARY KEY,
+    user_id UUID REFERENCES auth.users,
+    title VARCHAR(255),
+    status VARCHAR(50), -- recording, processing, completed, failed
+    duration_seconds INTEGER,
+    storage_path TEXT,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE analyses (
+    id UUID PRIMARY KEY,
+    recording_id UUID REFERENCES recordings(id),
+    status VARCHAR(50),
+    gpt_response JSONB,
+    automation_opportunities JSONB,
+    time_savings_hours DECIMAL,
+    confidence_score DECIMAL,
+    processing_cost DECIMAL,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE shared_results (
+    id UUID PRIMARY KEY,
+    analysis_id UUID REFERENCES analyses(id),
+    access_token VARCHAR(255) UNIQUE,
+    created_at TIMESTAMP DEFAULT NOW(),
+    expires_at TIMESTAMP
+);
+```
+
+---
+
+## UI/UX Principles for MVP
+
+### Design Philosophy
+- **Clarity over cleverness**: Simple cards, clear metrics
+- **Fast perceived performance**: Optimistic updates, skeleton screens  
+- **Trust through transparency**: Show what's happening at each step
+- **Mobile-responsive**: Works on tablets for warehouse floors
+
+### Core Screens
+
+#### 1. Recording Screen
+```
+┌─────────────────────────────────┐
+│ 🔴 Recording: Order Entry       │
+│                                 │
+│ Duration: 02:34                 │
+│ ░░░░░░░░░░░░░░░░░░░░░          │
+│                                 │
+│ [Stop Recording]                │
+│                                 │
+│ Your screen is being recorded   │
+│ at 2 FPS for workflow analysis  │
+└─────────────────────────────────┘
+```
+
+#### 2. Results Dashboard (Simplified)
+```
+┌─────────────────────────────────┐
+│ Analysis Complete ✓             │
+├─────────────────────────────────┤
+│ Time Savings Found              │
+│ 3.5 hours/week                  │
+│ ≈ $8,400/year                   │
+├─────────────────────────────────┤
+│ Automation Opportunities        │
+│                                 │
+│ 1. Email → WMS Data Entry      │
+│    15 times daily, 2 min each  │
+│    ⚡ High automation potential │
+│                                 │
+│ 2. Excel Report Generation     │
+│    3 times daily, 20 min each  │
+│    ⚡ Medium automation potential│
+│                                 │
+│ [Export Results] [Share Link]   │
+└─────────────────────────────────┘
+```
+
+---
+
+## Risk Mitigation
+
+### Technical Risks
+1. **GPT-4V Rate Limits**: Implement queuing and retry logic
+2. **Large Video Files**: Compress aggressively, limit recording length
+3. **Browser Compatibility**: Test on Chrome, Edge, Firefox
+4. **Cost Overruns**: Set hard limits on API calls per user
+
+### User Experience Risks
+1. **Recording Failures**: Clear error messages, auto-recovery
+2. **Unclear Value**: Focus on specific time/cost savings
+3. **Privacy Concerns**: Clear warnings, user controls
+4. **Long Processing**: Show progress, set expectations
+
+---
+
+## Success Metrics for August
+
+### Technical Metrics
+- [ ] 95% recording success rate
+- [ ] <2 minute analysis time for 5-min recording
+- [ ] <$0.30 GPT-4V cost per analysis
+- [ ] 99% uptime during testing
+
+### Business Metrics
+- [ ] 5 beta users complete recordings
+- [ ] 3+ automation opportunities identified per recording
+- [ ] Clear ROI shown (20+ hours monthly savings)
+- [ ] 2 pilot customers signed by month end
+
+---
+
+## Post-MVP Roadmap (September+)
+
+Once MVP is validated:
+1. **Week 5-6**: Add flow chart visualizations
+2. **Week 7-8**: Build browser extension
+3. **Month 2**: Implement advanced privacy features
+4. **Month 3**: Multi-model architecture (SAM + GPT-4V)
+5. **Month 4**: Scale to microservices architecture
+
+---
+
+## Daily Development Schedule
+
+### Week 1-3: Build Phase
+- **9 AM - 12 PM**: Core feature development
+- **1 PM - 3 PM**: Testing and bug fixes  
+- **3 PM - 5 PM**: UI polish and integration
+- **5 PM - 6 PM**: Daily deploy to staging
+
+### Week 4: Polish Phase
+- **9 AM - 11 AM**: User testing sessions
+- **11 AM - 2 PM**: Fix critical issues
+- **2 PM - 4 PM**: Performance optimization
+- **4 PM - 6 PM**: Documentation and deployment
+
+---
+
+## Conclusion
+
+This focused plan delivers a valuable MVP in August while maintaining our architectural vision. By deferring complex features and choosing pragmatic solutions, we can validate the core value proposition with real users and revenue.
+
+**Remember**: Perfect is the enemy of good. Ship something that clearly demonstrates ROI, then enhance based on user feedback.
+
+**Next Action**: Set up the development environment and start Week 1 tasks on Monday, August 5th.

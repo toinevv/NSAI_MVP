@@ -1,0 +1,1002 @@
+---
+alwaysApply: true
+---
+# NewSystem.AI MVP Architecture Document
+## Screen Recording & AI Analysis Platform for Logistics Operations
+
+### Executive Summary
+
+This architecture document defines the technical foundation for NewSystem.AI's MVP - a pragmatic screen recording and analysis platform that transforms warehouse operator workflows into actionable automation insights. The architecture prioritizes immediate value delivery through GPT-4V integration while maintaining clear paths for progressive enhancement toward specialized UI understanding models.
+
+---
+
+## 1. Architecture Principles & Constraints
+
+### Core Principles
+- **Pragmatic MVP First**: Ship working software in 30 days using proven technologies
+- **Progressive Enhancement**: Start with GPT-4V, prepare for hybrid model architectures
+- **Operator-Centric Design**: Simple interfaces hiding sophisticated analysis
+- **Modular Boundaries**: Clear separation between recording, analysis, and insights
+- **Cost-Conscious Scaling**: Optimize for 100 concurrent users with efficient resource usage
+
+### Technical Constraints
+- **MVP Timeline**: 30-day development cycle with weekly milestones
+- **Scale Target**: 100 concurrent users, 1000 daily recordings
+- **Infrastructure Budget**: ~$500/month on Railway deployment
+- **API Limits**: OpenAI rate limits (500 RPM for GPT-4V)
+- **Browser Compatibility**: Chrome, Edge, Firefox (latest 2 versions)
+
+### Design Philosophy (Palantir-Inspired)
+- **Data Density with Clarity**: Show complex insights through simple visualizations
+- **Progressive Disclosure**: Surface information as operators need it
+- **Actionable Intelligence**: Every insight must suggest clear next steps
+- **Trust Through Transparency**: Show how AI conclusions are reached
+
+---
+
+## 2. System Architecture Overview
+
+### High-Level Architecture
+
+```
+┌─────────────────────────── Client Layer ───────────────────────────┐
+│                                                                     │
+│  ┌─────────────┐  ┌──────────────┐  ┌─────────────┐              │
+│  │   Browser   │  │ Recording UI │  │  Dashboard  │              │
+│  │  Extension  │  │   (React)    │  │   (React)   │              │
+│  └──────┬──────┘  └──────┬───────┘  └──────┬──────┘              │
+│         │                │                  │                       │
+└─────────┴────────────────┴──────────────────┴──────────────────────┘
+          │                │                  │
+          ▼                ▼                  ▼
+┌─────────────────────────── API Gateway ────────────────────────────┐
+│                                                                     │
+│                    FastAPI + Rate Limiting                         │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+          │                │                  │
+          ▼                ▼                  ▼
+┌──────────────┐  ┌──────────────┐  ┌──────────────┐
+│  Recording   │  │   Analysis   │  │   Insights   │
+│   Service    │  │   Service    │  │   Service    │
+└──────┬───────┘  └──────┬───────┘  └──────┬───────┘
+       │                 │                   │
+       ▼                 ▼                   ▼
+┌─────────────────────────────────────────────────────┐
+│              Shared Infrastructure                   │
+├─────────────────┬──────────────┬───────────────────┤
+│    Supabase     │   Storage    │   Message Queue   │
+│   PostgreSQL    │   (Videos)   │     (Redis)       │
+└─────────────────┴──────────────┴───────────────────┘
+```
+
+### Service Boundaries
+
+**Recording Service**
+- Manages screen capture sessions
+- Handles video chunk upload/storage
+- Maintains recording metadata
+- Enforces privacy controls
+
+**Analysis Service**
+- Orchestrates GPT-4V processing
+- Manages frame extraction pipeline
+- Handles analysis job queuing
+- Stores analysis results
+
+**Insights Service**
+- Generates ROI calculations
+- Identifies automation opportunities
+- Creates workflow summaries
+- Manages reporting/exports
+
+---
+
+## 3. Data Flow Architecture
+
+### Recording Flow
+```
+User Starts Recording
+    ↓
+Browser Screen Capture API (2 FPS)
+    ↓
+Client-Side Compression (WebM VP9)
+    ↓
+5-Second Chunks
+    ↓
+Parallel Upload to Storage
+    ↓
+Recording Service Validation
+    ↓
+Metadata Storage (PostgreSQL)
+    ↓
+Analysis Queue Trigger
+```
+
+### Analysis Pipeline
+```
+Recording Complete Signal
+    ↓
+Frame Extraction Service
+    ├─> Keyframe Selection (1 frame/10 sec)
+    └─> UI Change Detection
+    ↓
+Preprocessing Pipeline
+    ├─> Resolution Optimization (1344x1344)
+    ├─> Element Detection (Future: SAM)
+    └─> OCR Text Extraction
+    ↓
+GPT-4V Analysis
+    ├─> Workflow Understanding
+    ├─> Pattern Recognition
+    └─> Automation Identification
+    ↓
+Results Aggregation
+    ↓
+Insights Generation
+```
+
+### Data Models
+
+**Recording Session**
+```typescript
+interface RecordingSession {
+  id: UUID
+  userId: UUID
+  title: string
+  status: 'recording' | 'processing' | 'completed' | 'failed'
+  startTime: timestamp
+  endTime?: timestamp
+  duration?: number
+  metadata: {
+    resolution: string
+    frameRate: number
+    userAgent: string
+    recordingType: 'screen' | 'window' | 'tab'
+  }
+  privacySettings: {
+    blurSensitive: boolean
+    excludePasswords: boolean
+  }
+}
+```
+
+**Analysis Result**
+```typescript
+interface AnalysisResult {
+  id: UUID
+  sessionId: UUID
+  status: 'queued' | 'processing' | 'completed' | 'failed'
+  gptVersion: string
+  processingTime: number
+  insights: {
+    workflows: WorkflowPattern[]
+    automationOpportunities: AutomationOpportunity[]
+    timeAnalysis: TimeSpentBreakdown
+    copyPasteDetections: CopyPastePattern[]
+  }
+  confidence: number
+  cost: number
+}
+```
+
+---
+
+## 4. AI Integration Strategy
+
+### Phase 1: GPT-4V Foundation (Weeks 1-2)
+
+**Implementation Approach**
+- Direct GPT-4V API integration via OpenAI SDK
+- Synchronous processing for MVP simplicity
+- Basic prompt templates for warehouse workflows
+
+**Prompt Engineering Framework**
+```
+System: You are analyzing warehouse operator screen recordings to identify automation opportunities.
+
+Frame Analysis:
+1. Identify applications being used (WMS, Excel, Email, etc.)
+2. Detect repetitive patterns (copy-paste, data entry, navigation)
+3. Measure time spent on each activity
+4. Suggest specific automation opportunities
+
+Output structured JSON with:
+- Workflow steps identified
+- Time spent per step
+- Automation potential (high/medium/low)
+- Specific recommendations
+```
+
+**Cost Optimization**
+- Batch frame analysis (5-10 frames per API call)
+- Cache analysis results for similar workflows
+- Use GPT-4V only for complex reasoning
+- Implement token counting and budget alerts
+
+### Phase 2: Preprocessing Enhancement (Weeks 3-4)
+
+**Planned Enhancements**
+- Browser-based OCR for text extraction
+- Simple UI element detection via DOM inspection
+- Visual markers for clickable elements
+- Workflow segmentation algorithms
+
+**Future-Ready Architecture**
+```
+Recording → Preprocessing → Model Router → Analysis
+              ↓                    ↓
+         OCR Service         Model Selection
+         UI Detection        (GPT-4V, Future: ScreenAI)
+         Frame Filtering     Cost/Accuracy Optimizer
+```
+
+### Progressive Model Integration Path
+
+**Month 2-3: Hybrid Architecture**
+- Integrate Segment Anything Model (SAM) for UI detection
+- Add specialized OCR models for text extraction
+- Implement model routing based on task complexity
+- Deploy A/B testing framework for model comparison
+
+**Month 4-6: Advanced Capabilities**
+- Multi-model orchestration for complex workflows
+- Custom fine-tuning on logistics UI patterns
+- Real-time analysis during recording
+- Predictive automation suggestions
+
+---
+
+## 5. Results Visualization & Reporting
+
+### Results Page Architecture
+
+The results page serves as the primary value delivery interface, transforming complex AI analysis into actionable business intelligence for warehouse operators.
+
+#### Core Components
+
+**1. Executive Summary Section**
+- High-level findings in 3-5 bullet points
+- Total time savings identified (hours/week)
+- Number of automation opportunities found
+- Estimated ROI percentage
+
+**2. Interactive Workflow Flow Chart**
+```
+Data Structure:
+{
+  nodes: [
+    { id: 'email', type: 'source', label: 'Email Client', timeSpent: 120 },
+    { id: 'copy', type: 'action', label: 'Copy Data', automated: false },
+    { id: 'wms', type: 'destination', label: 'WMS System', timeSpent: 240 }
+  ],
+  edges: [
+    { source: 'email', target: 'copy', label: '15x daily' },
+    { source: 'copy', target: 'wms', label: 'Manual Entry' }
+  ]
+}
+```
+
+**Visualization Features**:
+- Color-coded nodes (green: efficient, yellow: improvable, red: bottleneck)
+- Click nodes for detailed metrics
+- Hover for time/frequency data
+- Export as image for presentations
+
+**3. Cost Analysis Breakdown**
+- Current state: Hours spent on manual tasks × hourly rate
+- Future state: Projected time with automation
+- Implementation cost estimates
+- Payback period calculation
+- Monthly/annual savings projection
+
+**4. Recommendations Section**
+```
+Priority Matrix:
+┌─────────────┬─────────────┐
+│ Quick Wins  │ Strategic   │
+│ (High ROI,  │ (High ROI,  │
+│ Low Effort) │ High Effort)│
+├─────────────┼─────────────┤
+│ Consider    │ Defer       │
+│ (Low ROI,   │ (Low ROI,   │
+│ Low Effort) │ High Effort)│
+└─────────────┴─────────────┘
+```
+
+### PDF Report Generation
+
+#### Technical Implementation
+- **Library**: React-PDF for client-side generation
+- **Template Engine**: Custom React components for PDF layout
+- **Data Pipeline**: Results API → PDF Generator → Download
+
+#### PDF Structure
+```
+1. Cover Page
+   - Company branding
+   - Report date and session details
+   - Executive summary
+
+2. Workflow Analysis (2-3 pages)
+   - Current state flow chart
+   - Time allocation breakdown
+   - Bottleneck identification
+
+3. Automation Opportunities (2-3 pages)
+   - Detailed recommendations
+   - Implementation complexity
+   - Expected outcomes
+
+4. Cost-Benefit Analysis (1 page)
+   - Investment required
+   - Savings projection
+   - ROI timeline
+   - Risk assessment
+
+5. Next Steps (1 page)
+   - Prioritized action items
+   - Implementation roadmap
+   - Success metrics
+```
+
+#### PDF Design Specifications
+- **Format**: A4 portrait
+- **Branding**: NewSystem.AI colors (#03202F, #2DD4BF)
+- **Typography**: DM Sans for consistency
+- **Charts**: Embedded as vector graphics
+- **File Size**: Optimized to <2MB
+
+### Flow Chart Visualization
+
+#### Technology Stack
+- **Library**: React Flow or D3.js for interactive diagrams
+- **Rendering**: Canvas-based for performance
+- **Export**: SVG/PNG for reports
+
+#### Flow Chart Features
+- **Auto-layout**: Dagre algorithm for optimal positioning
+- **Interactive Elements**:
+  - Zoom and pan controls
+  - Node selection and highlighting
+  - Edge path animations for data flow
+  - Tooltip information panels
+
+#### Visual Language
+```
+Node Types:
+- Rectangle: Systems/Applications
+- Diamond: Decision points
+- Circle: Start/End points
+- Hexagon: Manual processes
+
+Edge Styles:
+- Solid: Primary flow
+- Dashed: Alternative flow
+- Thick: High-frequency path
+- Red: Bottleneck connection
+
+Colors:
+- Green (#10B981): Automated/Efficient
+- Yellow (#F59E0B): Opportunity
+- Red (#EF4444): Bottleneck
+- Blue (#2DD4BF): NewSystem.AI branded
+```
+
+### Data Architecture for Results
+
+```typescript
+interface AnalysisResults {
+  summary: {
+    totalTimeAnalyzed: number
+    automationOpportunities: number
+    estimatedTimeSavings: number
+    confidenceScore: number
+  }
+  
+  workflows: WorkflowPattern[]
+  
+  costAnalysis: {
+    currentCost: MonthlyCosting
+    projectedCost: MonthlyCosting
+    implementationCost: number
+    paybackPeriod: number
+  }
+  
+  recommendations: Recommendation[]
+  
+  flowChart: {
+    nodes: FlowNode[]
+    edges: FlowEdge[]
+    layout: LayoutConfig
+  }
+}
+
+interface Recommendation {
+  id: string
+  title: string
+  impact: 'high' | 'medium' | 'low'
+  effort: 'high' | 'medium' | 'low'
+  category: 'quick_win' | 'strategic' | 'consider' | 'defer'
+  description: string
+  implementation: string[]
+  estimatedSavings: number
+}
+```
+
+### API Endpoints for Results
+
+```
+GET    /api/v1/results/{session_id}          # Complete results data
+GET    /api/v1/results/{session_id}/summary  # Executive summary only
+POST   /api/v1/results/{session_id}/pdf      # Generate PDF report
+GET    /api/v1/results/{session_id}/flow     # Flow chart data
+POST   /api/v1/results/{session_id}/share    # Create shareable link
+```
+
+### Results Page User Flow
+
+1. **Analysis Complete** → Redirect to results page
+2. **Loading State** → Show progress while fetching data
+3. **Results Display** → Interactive dashboard with all sections
+4. **User Actions**:
+   - Explore flow chart interactively
+   - Review recommendations by priority
+   - Download PDF report
+   - Share results with team
+   - Schedule follow-up consultation
+
+### Performance Considerations
+
+- **Lazy Loading**: Load detailed data on demand
+- **Caching**: Store generated PDFs temporarily
+- **Progressive Rendering**: Show summary first, details later
+- **Optimized Charts**: Use Canvas for large datasets
+- **Responsive Design**: Mobile-friendly results view
+
+---
+
+## 6. Frontend Architecture
+
+### Component Structure
+
+```
+src/
+├── features/
+│   ├── recording/
+│   │   ├── components/
+│   │   │   ├── RecordingDashboard.tsx
+│   │   │   ├── PermissionDialog.tsx
+│   │   │   ├── RecordingControls.tsx
+│   │   │   └── PrivacySettings.tsx
+│   │   ├── hooks/
+│   │   │   ├── useScreenRecording.ts
+│   │   │   └── useRecordingUpload.ts
+│   │   └── services/
+│   │       └── recordingAPI.ts
+│   ├── analysis/
+│   │   ├── components/
+│   │   │   ├── AnalysisTimeline.tsx
+│   │   │   ├── WorkflowVisualizer.tsx
+│   │   │   └── InsightsPanel.tsx
+│   │   └── hooks/
+│   │       └── useAnalysisResults.ts
+│   ├── results/
+│   │   ├── components/
+│   │   │   ├── ResultsPage.tsx           # Main results display
+│   │   │   ├── WorkflowFlowChart.tsx     # Interactive flow visualization
+│   │   │   ├── CostAnalysisCard.tsx      # Cost breakdown display
+│   │   │   ├── RecommendationsList.tsx   # Actionable recommendations
+│   │   │   └── PDFDownloadButton.tsx     # Generate and download PDF
+│   │   ├── services/
+│   │   │   ├── pdfGenerator.ts           # PDF creation logic
+│   │   │   └── flowChartBuilder.ts       # Flow chart data structure
+│   │   └── hooks/
+│   │       └── useResultsData.ts
+│   └── insights/
+│       ├── components/
+│       │   ├── ROICalculator.tsx
+│       │   ├── AutomationRecommendations.tsx
+│       │   └── ExportReport.tsx
+│       └── services/
+│           └── insightsAPI.ts
+├── shared/
+│   ├── components/
+│   │   ├── Layout/
+│   │   │   ├── DashboardShell.tsx
+│   │   │   ├── NavigationSidebar.tsx
+│   │   │   └── HeaderBar.tsx
+│   │   └── UI/
+│   │       ├── DataTable.tsx
+│   │       ├── Card.tsx
+│   │       └── LoadingStates.tsx
+│   └── hooks/
+│       ├── useAuth.ts
+│       └── useWebSocket.ts
+└── lib/
+    ├── api-client.ts
+    ├── constants.ts
+    └── utils.ts
+```
+
+### UI/UX Design System (Palantir-Inspired)
+
+**Core Components**
+- **Data Cards**: Information-dense tiles with progressive disclosure
+- **Timeline Views**: Temporal workflow visualization
+- **Insight Panels**: Actionable recommendations with confidence scores
+- **Command Palette**: Quick navigation and actions (Cmd+K)
+
+**Visual Language**
+```css
+/* Brand Colors */
+--primary-dark: #03202F;
+--primary-teal: #2DD4BF;
+--surface-white: #FFFFFF;
+--text-primary: #000000;
+--text-secondary: #7B7B7B;
+
+/* Semantic Colors */
+--automation-high: #10B981;  /* Green - High potential */
+--automation-medium: #F59E0B; /* Amber - Medium potential */
+--automation-low: #6B7280;   /* Gray - Low potential */
+
+/* Typography Scale */
+--font-family: 'DM Sans', system-ui;
+--text-xs: 0.75rem;
+--text-sm: 0.875rem;
+--text-base: 1rem;
+--text-lg: 1.125rem;
+--text-xl: 1.25rem;
+```
+
+**Interaction Patterns**
+- Hover reveals additional context
+- Click for detailed views
+- Drag to rearrange dashboard
+- Keyboard shortcuts for power users
+
+---
+
+## 6. Backend Architecture
+
+### Service Architecture
+
+```
+app/
+├── api/
+│   ├── v1/
+│   │   ├── recordings.py     # Recording CRUD endpoints
+│   │   ├── analysis.py       # Analysis orchestration
+│   │   ├── insights.py       # Business intelligence
+│   │   ├── results.py        # Results API endpoints
+│   │   └── auth.py          # Authentication
+│   └── dependencies.py      # Shared dependencies
+├── services/
+│   ├── recording/
+│   │   ├── capture.py       # Recording management
+│   │   ├── storage.py       # Video storage handling
+│   │   └── privacy.py       # Privacy processing
+│   ├── analysis/
+│   │   ├── orchestrator.py  # Analysis pipeline
+│   │   ├── frame_extractor.py
+│   │   ├── gpt4v_client.py
+│   │   └── result_parser.py
+│   ├── insights/
+│   │   ├── roi_calculator.py
+│   │   ├── pattern_detector.py
+│   │   └── report_generator.py
+│   └── visualization/
+│       ├── flow_chart_builder.py  # Generate flow chart data
+│       ├── pdf_generator.py       # Server-side PDF backup
+│       └── cost_analyzer.py       # Financial calculations
+├── models/
+│   ├── database.py          # SQLAlchemy models
+│   ├── schemas.py           # Pydantic schemas
+│   └── enums.py            # Shared enumerations
+├── core/
+│   ├── config.py           # Environment config
+│   ├── security.py         # Auth/encryption
+│   └── exceptions.py       # Custom exceptions
+└── background/
+    ├── workers.py          # Celery tasks
+    └── schedulers.py       # Periodic jobs
+```
+
+### API Design Principles
+
+**RESTful Endpoints**
+```
+POST   /api/v1/recordings/start
+POST   /api/v1/recordings/{id}/chunks
+POST   /api/v1/recordings/{id}/complete
+GET    /api/v1/recordings
+GET    /api/v1/recordings/{id}
+DELETE /api/v1/recordings/{id}
+
+POST   /api/v1/analysis/{recording_id}/start
+GET    /api/v1/analysis/{id}/status
+GET    /api/v1/analysis/{id}/results
+
+GET    /api/v1/results/{session_id}          # Complete results data
+GET    /api/v1/results/{session_id}/summary  # Executive summary only
+POST   /api/v1/results/{session_id}/pdf      # Generate PDF report
+GET    /api/v1/results/{session_id}/flow     # Flow chart data
+POST   /api/v1/results/{session_id}/share    # Create shareable link
+
+GET    /api/v1/insights/dashboard
+GET    /api/v1/insights/roi/{recording_id}
+POST   /api/v1/insights/export
+```
+
+**Response Standards**
+```python
+class APIResponse(BaseModel):
+    success: bool
+    data: Optional[Any]
+    error: Optional[ErrorDetail]
+    metadata: ResponseMetadata
+```
+
+### Database Schema
+
+```sql
+-- Core Tables
+CREATE TABLE users (
+    id UUID PRIMARY KEY,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    organization_id UUID,
+    role VARCHAR(50),
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE recordings (
+    id UUID PRIMARY KEY,
+    user_id UUID REFERENCES users(id),
+    title VARCHAR(255),
+    status VARCHAR(50),
+    duration_seconds INTEGER,
+    file_path TEXT,
+    metadata JSONB,
+    created_at TIMESTAMP DEFAULT NOW(),
+    completed_at TIMESTAMP
+);
+
+CREATE TABLE analysis_results (
+    id UUID PRIMARY KEY,
+    recording_id UUID REFERENCES recordings(id),
+    gpt_version VARCHAR(50),
+    status VARCHAR(50),
+    insights JSONB,
+    confidence_score DECIMAL,
+    processing_cost DECIMAL,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE automation_opportunities (
+    id UUID PRIMARY KEY,
+    analysis_id UUID REFERENCES analysis_results(id),
+    workflow_type VARCHAR(100),
+    time_saved_weekly_hours DECIMAL,
+    implementation_complexity VARCHAR(50),
+    roi_score DECIMAL,
+    recommendations TEXT[]
+);
+
+-- Visualization and Reporting Tables
+CREATE TABLE workflow_visualizations (
+    id UUID PRIMARY KEY,
+    analysis_id UUID REFERENCES analysis_results(id),
+    flow_chart_data JSONB,  -- Nodes, edges, layout
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE generated_reports (
+    id UUID PRIMARY KEY,
+    analysis_id UUID REFERENCES analysis_results(id),
+    report_type VARCHAR(50),  -- 'pdf', 'excel', 'shareable_link'
+    file_url TEXT,
+    access_token VARCHAR(255),  -- For shareable links
+    expires_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE cost_analyses (
+    id UUID PRIMARY KEY,
+    analysis_id UUID REFERENCES analysis_results(id),
+    current_monthly_cost DECIMAL,
+    projected_monthly_cost DECIMAL,
+    implementation_cost DECIMAL,
+    payback_period_days INTEGER,
+    annual_savings DECIMAL,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Indexes for performance
+CREATE INDEX idx_recordings_user_status ON recordings(user_id, status);
+CREATE INDEX idx_analysis_recording ON analysis_results(recording_id);
+CREATE INDEX idx_automation_analysis ON automation_opportunities(analysis_id);
+CREATE INDEX idx_visualizations_analysis ON workflow_visualizations(analysis_id);
+CREATE INDEX idx_reports_analysis ON generated_reports(analysis_id);
+```
+
+---
+
+## 7. Infrastructure & Deployment
+
+### Deployment Architecture (Railway)
+
+```yaml
+# railway.toml
+[build]
+builder = "DOCKERFILE"
+
+[deploy]
+numReplicas = 2
+region = "us-west1"
+healthcheckPath = "/health"
+healthcheckTimeout = 30
+
+[services.api]
+name = "newsystem-api"
+port = 8000
+memory = "512Mi"
+cpu = "0.5"
+
+[services.worker]
+name = "newsystem-worker"
+memory = "1Gi"
+cpu = "1.0"
+```
+
+### Environment Configuration
+
+**Development**
+```env
+# .env.development
+NODE_ENV=development
+VITE_API_URL=http://localhost:8000
+VITE_SUPABASE_URL=https://xxx.supabase.co
+VITE_SUPABASE_ANON_KEY=xxx
+
+OPENAI_API_KEY=sk-xxx
+SUPABASE_SERVICE_KEY=xxx
+REDIS_URL=redis://localhost:6379
+```
+
+**Production**
+```env
+# .env.production
+NODE_ENV=production
+API_URL=https://api.newsystem.ai
+SUPABASE_URL=https://xxx.supabase.co
+OPENAI_API_KEY=${SECRET_OPENAI_KEY}
+SENTRY_DSN=${SECRET_SENTRY_DSN}
+```
+
+### Monitoring & Observability
+
+**Metrics Collection**
+- Recording success/failure rates
+- Average processing time per recording
+- GPT-4V API costs per analysis
+- User engagement metrics
+- System resource utilization
+
+**Logging Strategy**
+```python
+# Structured logging
+logger.info("analysis_started", extra={
+    "recording_id": recording_id,
+    "user_id": user_id,
+    "frame_count": frame_count,
+    "estimated_cost": estimated_cost
+})
+```
+
+**Alerting Rules**
+- API error rate > 5% (1 min window)
+- GPT-4V costs > $100/day
+- Recording processing queue > 50 items
+- Database connection pool exhaustion
+- Storage usage > 80%
+
+---
+
+## 8. Security & Privacy
+
+### Security Architecture
+
+**Authentication & Authorization**
+- Supabase Auth with JWT tokens
+- Row-level security in PostgreSQL
+- API rate limiting per user/org
+- Session management with refresh tokens
+
+**Data Protection**
+- Client-side privacy controls before upload
+- Automatic PII detection and masking
+- Encrypted storage for recordings
+- 30-day retention policy by default
+
+**Privacy Features**
+```typescript
+interface PrivacyControls {
+  blurPasswords: boolean      // Detect and blur password fields
+  excludePersonalInfo: boolean // Skip frames with PII
+  maskEmailAddresses: boolean  // Redact email content
+  customExclusions: string[]   // User-defined exclusions
+}
+```
+
+### Compliance Considerations
+
+**GDPR Requirements**
+- Explicit consent for recording
+- Data portability (export features)
+- Right to deletion implementation
+- Privacy policy integration
+
+**Security Best Practices**
+- HTTPS everywhere (SSL/TLS)
+- Content Security Policy headers
+- Input validation and sanitization
+- SQL injection prevention
+- XSS protection
+
+---
+
+## 9. Performance Optimization
+
+### Frontend Performance
+
+**Recording Optimization**
+- Adaptive frame rate based on activity
+- Client-side compression before upload
+- Chunked upload with retry logic
+- Progressive video playback
+
+**Dashboard Performance**
+- Virtual scrolling for large lists
+- Lazy loading of analysis results
+- Optimistic UI updates
+- Service worker for offline access
+
+### Backend Performance
+
+**API Optimization**
+- Database connection pooling
+- Query result caching (Redis)
+- Batch processing for analysis
+- Async request handling
+
+**GPT-4V Cost Optimization**
+```python
+class FrameSelector:
+    def select_keyframes(self, video_frames: List[Frame]) -> List[Frame]:
+        # Adaptive selection based on UI changes
+        # Target: 10-15 frames per 5-minute recording
+        # Cost: ~$0.15-0.30 per analysis
+```
+
+### Scalability Considerations
+
+**Horizontal Scaling Ready**
+- Stateless API services
+- Queue-based job processing
+- CDN for static assets
+- Database read replicas
+
+**Resource Limits (100 Users)**
+- 2 API instances (512MB each)
+- 1 Worker instance (1GB)
+- PostgreSQL (2GB RAM)
+- Redis cache (512MB)
+- Storage (500GB/month)
+
+---
+
+## 10. Development Workflow Integration
+
+### AI-Assisted Development
+
+**Claude Code Integration**
+```markdown
+# CLAUDE.md Context File
+Project: NewSystem.AI MVP
+Architecture: React + FastAPI + Supabase
+AI Model: GPT-4V (preparing for hybrid)
+Focus: Recording → Analysis → Insights
+Constraints: 30-day MVP, 100 users
+```
+
+**Cursor Configuration**
+```json
+{
+  "cursor.aiRules": {
+    "codeStyle": "functional-react-hooks",
+    "apiStyle": "fastapi-async",
+    "testing": "jest-rtl-pytest",
+    "errorHandling": "explicit-try-catch"
+  }
+}
+```
+
+### Testing Strategy
+
+**Test Coverage Goals**
+- Unit tests: 80% (critical paths)
+- Integration tests: Key workflows
+- E2E tests: Recording → Analysis flow
+- Performance tests: 100 concurrent users
+
+**Testing Stack**
+- Frontend: Vitest + React Testing Library
+- Backend: Pytest + FastAPI TestClient
+- E2E: Playwright
+- Load: K6 or Locust
+
+---
+
+## 11. Progressive Enhancement Roadmap
+
+### Month 1: MVP Foundation
+- ✓ Basic recording and upload
+- ✓ GPT-4V analysis pipeline
+- ✓ Simple insights dashboard
+- ✓ 100 user capacity
+
+### Month 2-3: Enhanced Intelligence
+- [ ] SAM integration for UI detection
+- [ ] Advanced pattern recognition
+- [ ] Multi-recording analysis
+- [ ] Team collaboration features
+
+### Month 4-6: Scale & Sophistication
+- [ ] Hybrid model architecture
+- [ ] Real-time analysis
+- [ ] API for integrations
+- [ ] 1000+ user capacity
+
+### Future Vision: ScreenAI Integration
+- [ ] Custom UI understanding models
+- [ ] Pixel-perfect automation mapping
+- [ ] Natural language workflow creation
+- [ ] Industry-specific optimizations
+
+---
+
+## 12. Success Metrics & KPIs
+
+### Technical Metrics
+- Recording success rate: >95%
+- Analysis completion: <2 minutes
+- System uptime: >99.5%
+- API response time: <200ms
+
+### Business Metrics
+- User activation: >60% complete first recording
+- Time to first insight: <5 minutes
+- Identified automation opportunities: >3 per recording
+- ROI demonstration: 20+ hours saved monthly
+
+### Quality Metrics
+- Analysis accuracy: >85% (human validated)
+- False positive rate: <15%
+- User satisfaction: >4.0/5.0
+- Support tickets: <5% of users
+
+---
+
+## Conclusion
+
+This architecture provides a solid foundation for NewSystem.AI's MVP while maintaining clear paths for growth. The modular design enables rapid development in 30 days while the progressive enhancement strategy ensures continued innovation without architectural rewrites.
+
+The key to success lies in balancing immediate value delivery through GPT-4V with preparation for more sophisticated UI understanding models. By following this architecture, NewSystem.AI can demonstrate real value to warehouse operators while building toward a comprehensive automation intelligence platform.
+
+**Next Steps**:
+1. Set up development environment following this architecture
+2. Implement recording service (Week 1)
+3. Deploy GPT-4V analysis pipeline (Week 2)
+4. Build insights dashboard (Week 3)
+5. Polish and optimize for 100 users (Week 4)
