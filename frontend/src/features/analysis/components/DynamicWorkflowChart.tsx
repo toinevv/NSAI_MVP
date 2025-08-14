@@ -39,8 +39,13 @@ const ApplicationNode = ({ data }: any) => {
   
   return (
     <div className={`px-4 py-3 shadow-lg rounded-lg ${colors.bg} border-2 ${colors.border} min-w-[220px] relative`}>
-      {/* Input handle at the top */}
-      <Handle type="target" position={Position.Top} className="w-3 h-3" />
+      {/* Input handle at the top - centered */}
+      <Handle 
+        type="target" 
+        position={Position.Top} 
+        className="w-3 h-3"
+        style={{ left: '50%', transform: 'translateX(-50%)' }}
+      />
       
       <div className="space-y-2">
         {/* Header with icon and action */}
@@ -72,8 +77,13 @@ const ApplicationNode = ({ data }: any) => {
         </div>
       </div>
       
-      {/* Output handle at the bottom */}
-      <Handle type="source" position={Position.Bottom} className="w-3 h-3" />
+      {/* Output handle at the bottom - centered */}
+      <Handle 
+        type="source" 
+        position={Position.Bottom} 
+        className="w-3 h-3"
+        style={{ left: '50%', transform: 'translateX(-50%)' }}
+      />
     </div>
   )
 }
@@ -83,8 +93,13 @@ const ActionNode = ({ data }: any) => {
   
   return (
     <div className={`px-4 py-3 shadow-md rounded-md ${colors.bg} border ${colors.border} min-w-[220px] relative`}>
-      {/* Input handle at the top */}
-      <Handle type="target" position={Position.Top} className="w-3 h-3" />
+      {/* Input handle at the top - centered */}
+      <Handle 
+        type="target" 
+        position={Position.Top} 
+        className="w-3 h-3"
+        style={{ left: '50%', transform: 'translateX(-50%)' }}
+      />
       
       <div className="space-y-2">
         {/* Header with icon and action */}
@@ -116,8 +131,13 @@ const ActionNode = ({ data }: any) => {
         </div>
       </div>
       
-      {/* Output handle at the bottom */}
-      <Handle type="source" position={Position.Bottom} className="w-3 h-3" />
+      {/* Output handle at the bottom - centered */}
+      <Handle 
+        type="source" 
+        position={Position.Bottom} 
+        className="w-3 h-3"
+        style={{ left: '50%', transform: 'translateX(-50%)' }}
+      />
     </div>
   )
 }
@@ -127,8 +147,13 @@ const DataNode = ({ data }: any) => {
   
   return (
     <div className={`px-4 py-3 shadow-md rounded ${colors.bg} border ${colors.border} min-w-[220px] relative`}>
-      {/* Input handle at the top */}
-      <Handle type="target" position={Position.Top} className="w-3 h-3" />
+      {/* Input handle at the top - centered */}
+      <Handle 
+        type="target" 
+        position={Position.Top} 
+        className="w-3 h-3"
+        style={{ left: '50%', transform: 'translateX(-50%)' }}
+      />
       
       <div className="space-y-2">
         {/* Header with icon and action */}
@@ -160,8 +185,13 @@ const DataNode = ({ data }: any) => {
         </div>
       </div>
       
-      {/* Output handle at the bottom */}
-      <Handle type="source" position={Position.Bottom} className="w-3 h-3" />
+      {/* Output handle at the bottom - centered */}
+      <Handle 
+        type="source" 
+        position={Position.Bottom} 
+        className="w-3 h-3"
+        style={{ left: '50%', transform: 'translateX(-50%)' }}
+      />
     </div>
   )
 }
@@ -171,8 +201,17 @@ const DecisionNode = ({ data }: any) => {
   
   return (
     <div className={`w-[180px] h-[180px] shadow-md transform rotate-45 ${colors.bg} border-2 ${colors.border} flex items-center justify-center relative`}>
-      {/* Input handle at the top */}
-      <Handle type="target" position={Position.Top} className="w-3 h-3" style={{ top: '-25px' }} />
+      {/* Input handle at the top - centered for diamond */}
+      <Handle 
+        type="target" 
+        position={Position.Top} 
+        className="w-3 h-3" 
+        style={{ 
+          top: '-6px', 
+          left: '50%', 
+          transform: 'translateX(-50%) rotate(-45deg)' 
+        }} 
+      />
       
       <div className="transform -rotate-45 text-center px-4 max-w-[160px]">
         {/* Main action/question */}
@@ -194,8 +233,17 @@ const DecisionNode = ({ data }: any) => {
         )}
       </div>
       
-      {/* Output handle at the bottom */}
-      <Handle type="source" position={Position.Bottom} className="w-3 h-3" style={{ bottom: '-25px' }} />
+      {/* Output handle at the bottom - centered for diamond */}
+      <Handle 
+        type="source" 
+        position={Position.Bottom} 
+        className="w-3 h-3" 
+        style={{ 
+          bottom: '-6px', 
+          left: '50%', 
+          transform: 'translateX(-50%) rotate(-45deg)' 
+        }} 
+      />
     </div>
   )
 }
@@ -300,28 +348,19 @@ const getApplicationColors = (appName: string) => {
 
 // Professional flowchart layout function
 const getLayoutedElements = (nodes: Node[], edges: Edge[]) => {
-  // Enhanced spacing for professional appearance
-  const nodeWidth = 220  // Match min-width of enhanced nodes
-  const nodeHeight = 120 // Accommodate richer content
-  const horizontalSpacing = 300 // More generous horizontal spacing
-  const verticalSpacing = 150   // Better vertical breathing room
-
-  // Professional top-to-bottom flowchart layout
-  const maxNodesPerRow = 3  // Reduced for better readability
+  // Enhanced spacing for professional flowchart appearance
+  const verticalSpacing = 180   // Consistent vertical spacing between steps
+  const startY = 80             // Top margin
+  const centerX = 400           // Center all nodes horizontally for straight vertical flow
   
+  // For small workflows (≤8 steps): single vertical column
+  // For larger workflows: still single column but with tighter spacing if needed
   const layoutedNodes = nodes.map((node, index) => {
-    const column = index % maxNodesPerRow
-    const row = Math.floor(index / maxNodesPerRow)
-    
-    // Center nodes when fewer than max per row
-    const nodesInRow = Math.min(maxNodesPerRow, nodes.length - (row * maxNodesPerRow))
-    const rowOffset = (maxNodesPerRow - nodesInRow) * horizontalSpacing / 2
-    
     return {
       ...node,
       position: {
-        x: column * horizontalSpacing + rowOffset + 50, // Extra margin
-        y: row * verticalSpacing + 50  // Top margin
+        x: centerX - 110,  // Center the 220px wide nodes
+        y: startY + (index * verticalSpacing)
       },
       targetPosition: Position.Top,    // Top-to-bottom flow
       sourcePosition: Position.Bottom
@@ -361,18 +400,18 @@ export const DynamicWorkflowChart: React.FC<DynamicWorkflowChartProps> = ({
       source: edge.source,
       target: edge.target,
       label: edge.label,
-      type: 'smoothstep',
+      type: 'straight',  // Straight edges for clean vertical flowchart arrows
       animated: edge.type === 'repeat',
       markerEnd: {
         type: MarkerType.ArrowClosed,
-        width: 25,    // Larger arrow for better visibility
-        height: 25,
-        color: '#374151'  // Darker color for prominence
+        width: 20,    // Slightly smaller for cleaner look
+        height: 20,
+        color: '#374151'
       },
       style: {
-        strokeWidth: 3,  // Thicker lines for professional appearance
-        stroke: edge.type === 'bottleneck' ? '#ef4444' : '#374151',  // Darker default color
-        strokeDasharray: edge.type === 'parallel' ? '5 5' : undefined  // Dashed for parallel flows
+        strokeWidth: 2,  // Clean professional thickness
+        stroke: edge.type === 'bottleneck' ? '#ef4444' : '#374151',
+        strokeDasharray: edge.type === 'parallel' ? '5 5' : undefined
       }
     }))
   }, [data])
