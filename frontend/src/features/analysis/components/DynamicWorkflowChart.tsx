@@ -348,13 +348,12 @@ const getApplicationColors = (appName: string) => {
 
 // Professional flowchart layout function
 const getLayoutedElements = (nodes: Node[], edges: Edge[]) => {
-  // Enhanced spacing for professional flowchart appearance
-  const verticalSpacing = 180   // Consistent vertical spacing between steps
-  const startY = 80             // Top margin
-  const centerX = 400           // Center all nodes horizontally for straight vertical flow
+  // More compact spacing for better scanning while maintaining readability
+  const verticalSpacing = 140   // Reduced from 180px for more compact layout
+  const startY = 60             // Reduced top margin
+  const centerX = 350           // Slightly adjusted center for better balance
   
-  // For small workflows (≤8 steps): single vertical column
-  // For larger workflows: still single column but with tighter spacing if needed
+  // Single vertical column for clean, scannable flowchart
   const layoutedNodes = nodes.map((node, index) => {
     return {
       ...node,
@@ -400,17 +399,17 @@ export const DynamicWorkflowChart: React.FC<DynamicWorkflowChartProps> = ({
       source: edge.source,
       target: edge.target,
       label: edge.label,
-      type: 'straight',  // Straight edges for clean vertical flowchart arrows
+      type: 'straight',  // Straight edges for perfectly vertical arrows
       animated: edge.type === 'repeat',
       markerEnd: {
         type: MarkerType.ArrowClosed,
-        width: 20,    // Slightly smaller for cleaner look
-        height: 20,
-        color: '#374151'
+        width: 24,    // Larger arrowhead for better visibility
+        height: 24,
+        color: '#1f2937'  // Darker color for prominence
       },
       style: {
-        strokeWidth: 2,  // Clean professional thickness
-        stroke: edge.type === 'bottleneck' ? '#ef4444' : '#374151',
+        strokeWidth: 3,  // Bolder lines to match node visual weight
+        stroke: edge.type === 'bottleneck' ? '#ef4444' : '#1f2937',  // Darker for prominence
         strokeDasharray: edge.type === 'parallel' ? '5 5' : undefined
       }
     }))
@@ -460,10 +459,12 @@ export const DynamicWorkflowChart: React.FC<DynamicWorkflowChartProps> = ({
         connectionMode={ConnectionMode.Loose}
         fitView
         fitViewOptions={{
-          padding: 0.15,  // Tighter padding for more professional look
-          maxZoom: 1.2,   // Slightly less zoom for better readability
-          minZoom: 0.3    // Allow zooming out more for large workflows
+          padding: 0.1,   // Even tighter padding for compact layout
+          maxZoom: 1.0,   // Prevent zoom-in to maintain precise alignment
+          minZoom: 0.3    // Allow zooming out for large workflows
         }}
+        snapToGrid={true}  // Force perfect grid alignment
+        snapGrid={[20, 20]} // 20px snap grid for perfect positioning
         style={{ width: '100%', height: '100%' }}
       >
         <Background 
