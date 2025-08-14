@@ -4,7 +4,7 @@
  * Adapts to any workflow pattern discovered
  */
 
-import React, { useCallback, useMemo } from 'react'
+import React, { useCallback, useMemo, useEffect, useState } from 'react'
 import ReactFlow, {
   type Node,
   type Edge,
@@ -18,7 +18,8 @@ import ReactFlow, {
   ConnectionMode,
   MarkerType,
   Position,
-  Handle
+  Handle,
+  type ReactFlowInstance
 } from 'reactflow'
 import 'reactflow/dist/style.css'
 import { 
@@ -32,13 +33,67 @@ import {
   Clock
 } from 'lucide-react'
 
-// Custom node types for different workflow elements
-const ApplicationNode = ({ data }: any) => {
-  const Icon = data.icon || Monitor
-  const colors = getApplicationColors(data.application)
+// Helper functions matching Step-by-Step Workflow exactly
+const getStepIcon = (step: any) => {
+  const application = step.application?.toLowerCase() || ''
+  const action = step.action?.toLowerCase() || ''
+  
+  // Application-based icons
+  if (application.includes('mail') || application.includes('outlook') || application.includes('gmail')) return Mail
+  if (application.includes('excel') || application.includes('sheets')) return FileText
+  if (application.includes('chrome') || application.includes('browser') || application.includes('web')) return Globe
+  if (application.includes('database') || application.includes('wms') || application.includes('erp')) return Database
+  
+  // Action-based icons
+  if (action.includes('click') || action.includes('select') || action.includes('navigate')) return MousePointer
+  if (action.includes('open') || action.includes('switch') || action.includes('access')) return Monitor
+  if (action.includes('copy') || action.includes('paste') || action.includes('enter') || action.includes('input')) return MousePointer
+  
+  return Monitor // default
+}
+
+const getStepType = (step: any) => {
+  const action = step.action?.toLowerCase() || ''
+  if (action.includes('open') || action.includes('switch') || action.includes('access')) return 'application'
+  if (action.includes('copy') || action.includes('paste') || action.includes('enter') || action.includes('input')) return 'action'
+  if (action.includes('data') || action.includes('information')) return 'data'
+  if (action.includes('check') || action.includes('verify') || action.includes('review')) return 'decision'
+  return 'action'
+}
+
+const getStepTypeColor = (stepType: string) => {
+  switch (stepType) {
+    case 'application': return 'bg-blue-50 border-blue-200 text-blue-800'
+    case 'action': return 'bg-orange-50 border-orange-200 text-orange-800'
+    case 'data': return 'bg-green-50 border-green-200 text-green-800'
+    case 'decision': return 'bg-purple-50 border-purple-200 text-purple-800'
+    default: return 'bg-gray-50 border-gray-200 text-gray-800'
+  }
+}
+
+const extractDataInvolved = (step: any) => {
+  const text = `${step.action || ''} ${step.purpose || ''}`.toLowerCase()
+  const dataTypes = []
+  
+  if (text.includes('order') || text.includes('orders')) dataTypes.push('order data')
+  if (text.includes('customer') || text.includes('client')) dataTypes.push('customer info')
+  if (text.includes('email') || text.includes('message')) dataTypes.push('email content')
+  if (text.includes('inventory') || text.includes('stock')) dataTypes.push('inventory data')
+  if (text.includes('number') || text.includes('id') || text.includes('code')) dataTypes.push('identifiers')
+  if (text.includes('address') || text.includes('location')) dataTypes.push('address data')
+  if (text.includes('price') || text.includes('cost') || text.includes('amount')) dataTypes.push('pricing info')
+  
+  return dataTypes
+}
+
+// Enhanced workflow node - matches Step-by-Step Workflow exactly
+const WorkflowNode = ({ data }: any) => {
+  const stepType = getStepType(data)
+  const StepIcon = getStepIcon(data)
+  const dataInvolved = extractDataInvolved(data)
   
   return (
-    <div className={`px-4 py-3 shadow-lg rounded-lg ${colors.bg} border-2 ${colors.border} min-w-[220px] relative`}>
+    <div className={`relative flex items-start space-x-3 p-3 rounded-lg border-2 transition-all hover:shadow-md min-w-[280px] ${getStepTypeColor(stepType)}`}>
       {/* Input handle at the top - centered */}
       <Handle 
         type="target" 
@@ -47,34 +102,56 @@ const ApplicationNode = ({ data }: any) => {
         style={{ left: '50%', transform: 'translateX(-50%)' }}
       />
       
-      <div className="space-y-2">
-        {/* Header with icon and action */}
-        <div className="flex items-center space-x-2">
-          <Icon className={`w-5 h-5 ${colors.text} flex-shrink-0`} />
-          <div className="text-sm font-bold text-gray-900 leading-tight">{data.label}</div>
+      {/* Step Number & Icon */}
+      <div className="flex flex-col items-center space-y-1 flex-shrink-0">
+        <div className="w-7 h-7 bg-white rounded-full flex items-center justify-center border-2 border-current shadow-sm">
+          <span className="text-xs font-bold">{data.stepNumber}</span>
+        </div>
+        <StepIcon className="w-3.5 h-3.5 opacity-60" />
+      </div>
+      
+      {/* Step Content */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-start justify-between mb-1">
+          <div className="flex-1">
+            <p className="font-medium text-gray-900 text-sm leading-tight mb-1">{data.label}</p>
+            <div className="flex items-center space-x-2 text-xs text-gray-600">
+              <span className="flex items-center">
+                <Monitor className="w-3 h-3 mr-1" />
+                {data.application}
+              </span>
+              {data.time && (
+                <span className="flex items-center">
+                  <Clock className="w-3 h-3 mr-1" />
+                  {data.time}
+                </span>
+              )}
+            </div>
+            {data.purpose && (
+              <p className="text-xs text-gray-600 mt-1 leading-tight">{data.purpose}</p>
+            )}
+          </div>
+          
+          {/* Step Type Badge */}
+          <span className="px-1.5 py-0.5 text-xs font-medium bg-white bg-opacity-80 rounded-full border border-current ml-2 flex-shrink-0">
+            {stepType}
+          </span>
         </div>
         
-        {/* Purpose if available */}
-        {data.purpose && (
-          <div className={`text-xs text-gray-600 italic border-l-2 ${colors.accent} pl-2`}>
-            {data.purpose}
+        {/* Data Involved */}
+        {dataInvolved && dataInvolved.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-1">
+            {dataInvolved.map((dataType: string, dataIndex: number) => (
+              <span 
+                key={dataIndex} 
+                className="inline-flex items-center px-1.5 py-0.5 text-xs bg-white bg-opacity-60 text-gray-700 rounded border"
+              >
+                <Database className="w-2.5 h-2.5 mr-1" />
+                {dataType}
+              </span>
+            ))}
           </div>
         )}
-        
-        {/* Timing and application info */}
-        <div className="flex items-center justify-between text-xs text-gray-500">
-          {data.time && (
-            <div className="flex items-center">
-              <Clock className="w-3 h-3 mr-1" />
-              {data.time}
-            </div>
-          )}
-          {data.application && (
-            <div className={`text-right ${colors.text} font-medium text-xs`}>
-              {data.application}
-            </div>
-          )}
-        </div>
       </div>
       
       {/* Output handle at the bottom - centered */}
@@ -88,172 +165,14 @@ const ApplicationNode = ({ data }: any) => {
   )
 }
 
-const ActionNode = ({ data }: any) => {
-  const colors = getApplicationColors(data.application)
-  
-  return (
-    <div className={`px-4 py-3 shadow-md rounded-md ${colors.bg} border ${colors.border} min-w-[220px] relative`}>
-      {/* Input handle at the top - centered */}
-      <Handle 
-        type="target" 
-        position={Position.Top} 
-        className="w-3 h-3"
-        style={{ left: '50%', transform: 'translateX(-50%)' }}
-      />
-      
-      <div className="space-y-2">
-        {/* Header with icon and action */}
-        <div className="flex items-center space-x-2">
-          <MousePointer className={`w-4 h-4 ${colors.text} flex-shrink-0`} />
-          <div className="text-sm font-bold text-gray-800 leading-tight">{data.label}</div>
-        </div>
-        
-        {/* Purpose if available */}
-        {data.purpose && (
-          <div className={`text-xs text-gray-600 italic border-l-2 ${colors.accent} pl-2`}>
-            {data.purpose}
-          </div>
-        )}
-        
-        {/* Timing and application info */}
-        <div className="flex items-center justify-between text-xs text-gray-500">
-          {data.time && (
-            <div className="flex items-center">
-              <Clock className="w-3 h-3 mr-1" />
-              {data.time}
-            </div>
-          )}
-          {data.application && (
-            <div className={`text-right ${colors.text} font-medium text-xs`}>
-              {data.application}
-            </div>
-          )}
-        </div>
-      </div>
-      
-      {/* Output handle at the bottom - centered */}
-      <Handle 
-        type="source" 
-        position={Position.Bottom} 
-        className="w-3 h-3"
-        style={{ left: '50%', transform: 'translateX(-50%)' }}
-      />
-    </div>
-  )
-}
 
-const DataNode = ({ data }: any) => {
-  const colors = getApplicationColors(data.application)
-  
-  return (
-    <div className={`px-4 py-3 shadow-md rounded ${colors.bg} border ${colors.border} min-w-[220px] relative`}>
-      {/* Input handle at the top - centered */}
-      <Handle 
-        type="target" 
-        position={Position.Top} 
-        className="w-3 h-3"
-        style={{ left: '50%', transform: 'translateX(-50%)' }}
-      />
-      
-      <div className="space-y-2">
-        {/* Header with icon and action */}
-        <div className="flex items-center space-x-2">
-          <Database className={`w-4 h-4 ${colors.text} flex-shrink-0`} />
-          <div className="text-sm font-bold text-gray-800 leading-tight">{data.label}</div>
-        </div>
-        
-        {/* Purpose if available */}
-        {data.purpose && (
-          <div className={`text-xs text-gray-600 italic border-l-2 ${colors.accent} pl-2`}>
-            {data.purpose}
-          </div>
-        )}
-        
-        {/* Timing and application info */}
-        <div className="flex items-center justify-between text-xs text-gray-500">
-          {data.time && (
-            <div className="flex items-center">
-              <Clock className="w-3 h-3 mr-1" />
-              {data.time}
-            </div>
-          )}
-          {data.application && (
-            <div className={`text-right ${colors.text} font-medium text-xs`}>
-              {data.application}
-            </div>
-          )}
-        </div>
-      </div>
-      
-      {/* Output handle at the bottom - centered */}
-      <Handle 
-        type="source" 
-        position={Position.Bottom} 
-        className="w-3 h-3"
-        style={{ left: '50%', transform: 'translateX(-50%)' }}
-      />
-    </div>
-  )
-}
-
-const DecisionNode = ({ data }: any) => {
-  const colors = getApplicationColors(data.application)
-  
-  return (
-    <div className={`w-[180px] h-[180px] shadow-md transform rotate-45 ${colors.bg} border-2 ${colors.border} flex items-center justify-center relative`}>
-      {/* Input handle at the top - centered for diamond */}
-      <Handle 
-        type="target" 
-        position={Position.Top} 
-        className="w-3 h-3" 
-        style={{ 
-          top: '-6px', 
-          left: '50%', 
-          transform: 'translateX(-50%) rotate(-45deg)' 
-        }} 
-      />
-      
-      <div className="transform -rotate-45 text-center px-4 max-w-[160px]">
-        {/* Main action/question */}
-        <div className="text-sm font-bold text-gray-800 leading-tight mb-1">{data.label}</div>
-        
-        {/* Purpose if available - simplified for diamond shape */}
-        {data.purpose && (
-          <div className="text-xs text-gray-600 italic mb-1 line-clamp-2">
-            {data.purpose}
-          </div>
-        )}
-        
-        {/* Timing info */}
-        {data.time && (
-          <div className="text-xs text-gray-500 flex items-center justify-center">
-            <Clock className="w-3 h-3 mr-1" />
-            {data.time}
-          </div>
-        )}
-      </div>
-      
-      {/* Output handle at the bottom - centered for diamond */}
-      <Handle 
-        type="source" 
-        position={Position.Bottom} 
-        className="w-3 h-3" 
-        style={{ 
-          bottom: '-6px', 
-          left: '50%', 
-          transform: 'translateX(-50%) rotate(-45deg)' 
-        }} 
-      />
-    </div>
-  )
-}
-
-// Memoized node types to prevent ReactFlow warnings about object recreation
+// Simplified node types - use one type for all workflow steps
 const nodeTypes = {
-  application: ApplicationNode,
-  action: ActionNode,
-  data: DataNode,
-  decision: DecisionNode
+  workflow: WorkflowNode,
+  application: WorkflowNode,
+  action: WorkflowNode,
+  data: WorkflowNode,
+  decision: WorkflowNode
 }
 
 interface WorkflowNode {
@@ -289,84 +208,29 @@ export interface DynamicWorkflowChartRef {
   exportToPNG: () => Promise<void>
 }
 
-// Helper function to get icon for application
-const getAppIcon = (appName: string) => {
-  const name = appName.toLowerCase()
-  if (name.includes('mail') || name.includes('outlook') || name.includes('gmail')) return Mail
-  if (name.includes('excel') || name.includes('sheets')) return FileText
-  if (name.includes('chrome') || name.includes('browser') || name.includes('web')) return Globe
-  if (name.includes('database') || name.includes('wms') || name.includes('erp')) return Database
-  return Monitor
-}
 
-// Helper function to get application-based colors for professional flow distinction
-const getApplicationColors = (appName: string) => {
-  if (!appName) return { bg: 'bg-gray-50', border: 'border-gray-300', text: 'text-gray-600', accent: 'border-gray-200' }
-  
-  const app = appName.toLowerCase()
-  
-  if (app.includes('mail') || app.includes('outlook') || app.includes('gmail')) {
-    return { 
-      bg: 'bg-yellow-50', 
-      border: 'border-yellow-400', 
-      text: 'text-yellow-700', 
-      accent: 'border-yellow-200' 
-    }
-  }
-  if (app.includes('excel') || app.includes('sheets') || app.includes('spreadsheet')) {
-    return { 
-      bg: 'bg-green-50', 
-      border: 'border-green-400', 
-      text: 'text-green-700', 
-      accent: 'border-green-200' 
-    }
-  }
-  if (app.includes('chrome') || app.includes('browser') || app.includes('web') || app.includes('wms')) {
-    return { 
-      bg: 'bg-blue-50', 
-      border: 'border-blue-400', 
-      text: 'text-blue-700', 
-      accent: 'border-blue-200' 
-    }
-  }
-  if (app.includes('database') || app.includes('erp')) {
-    return { 
-      bg: 'bg-red-50', 
-      border: 'border-red-400', 
-      text: 'text-red-700', 
-      accent: 'border-red-200' 
-    }
-  }
-  
-  return { 
-    bg: 'bg-purple-50', 
-    border: 'border-purple-400', 
-    text: 'text-purple-700', 
-    accent: 'border-purple-200' 
-  }
-}
-
-// Professional flowchart layout function
+// Enhanced vertical layout function - centered workflow
 const getLayoutedElements = (nodes: Node[], edges: Edge[]) => {
-  // Compact spacing for better scanning
-  const verticalSpacing = 140   
-  const startY = 60             
-  const nodeWidth = 220         // Min-width of our nodes
+  const verticalSpacing = 160   // More spacing for enhanced nodes
+  const startY = 50             
+  const nodeWidth = 280         // Width of our enhanced nodes
   
-  // Center nodes properly in the available space
-  // Using a reasonable container assumption and centering the nodes
-  const containerWidth = 800    // Assumption based on typical chart width
-  const centerX = (containerWidth / 2) - (nodeWidth / 2)
+  // Calculate the total workflow height
+  const totalHeight = (nodes.length - 1) * verticalSpacing
   
-  // Single vertical column for clean flowchart
+  // Center the workflow both horizontally and vertically
+  const centerX = -nodeWidth / 2  // Center horizontally around x=0
+  const centerY = -totalHeight / 2  // Center vertically around y=0
+  
+  // Vertical column layout matching Step-by-Step Workflow
   const layoutedNodes = nodes.map((node, index) => {
     return {
       ...node,
       position: {
-        x: centerX,  // Properly center the nodes
-        y: startY + (index * verticalSpacing)
+        x: centerX,  // Centered horizontally
+        y: centerY + startY + (index * verticalSpacing)  // Centered vertically
       },
-      targetPosition: Position.Top,    // Top-to-bottom flow
+      targetPosition: Position.Top,
       sourcePosition: Position.Bottom
     }
   })
@@ -379,19 +243,27 @@ export const DynamicWorkflowChart: React.FC<DynamicWorkflowChartProps> = ({
   className = '',
   onNodeClick
 }) => {
+  const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null)
   // Convert workflow data to React Flow format
   const initialNodes = useMemo(() => {
     if (!data?.nodes) return []
     
     return data.nodes.map((node, index) => ({
       id: node.id,
-      type: node.type || 'application',
+      type: 'workflow', // Use single workflow type
       position: { x: 0, y: 0 }, // Will be calculated by layout
       data: {
+        // Pass all the data that Step-by-Step Workflow uses
         label: node.label,
+        stepNumber: node.metadata?.step_number || index + 1,
+        action: node.label, // action is the main label
+        application: node.metadata?.application,
         time: node.metadata?.time,
-        icon: node.metadata?.application ? getAppIcon(node.metadata.application) : undefined,
-        ...node.metadata
+        time_formatted: node.metadata?.time_formatted,
+        time_estimate_seconds: node.metadata?.time_estimate_seconds,
+        purpose: node.metadata?.purpose,
+        visible_in_frames: node.metadata?.visible_in_frames,
+        data_involved: node.metadata?.data_involved
       }
     }))
   }, [data])
@@ -428,6 +300,18 @@ export const DynamicWorkflowChart: React.FC<DynamicWorkflowChartProps> = ({
 
   const [nodes, setNodes, onNodesChange] = useNodesState(layoutedNodes)
   const [edges, setEdges, onEdgesChange] = useEdgesState(layoutedEdges)
+  
+  // Force re-center after nodes are loaded (this fixes the centering issue!)
+  useEffect(() => {
+    if (reactFlowInstance && nodes.length > 0) {
+      setTimeout(() => {
+        reactFlowInstance.fitView({ 
+          padding: 0.2,
+          duration: 200
+        })
+      }, 100)
+    }
+  }, [nodes, reactFlowInstance])
 
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
@@ -462,12 +346,21 @@ export const DynamicWorkflowChart: React.FC<DynamicWorkflowChartProps> = ({
         onNodeClick={handleNodeClick}
         nodeTypes={nodeTypes}
         connectionMode={ConnectionMode.Loose}
+        onInit={(instance) => {
+          console.log('React Flow initialized')
+          setReactFlowInstance(instance)
+          // Initial fitView
+          instance.fitView({ padding: 0.2 })
+        }}
         fitView
         fitViewOptions={{
-          padding: 0.15,  // Normal padding for professional look
-          maxZoom: 1.2,   // Normal zoom for readability
-          minZoom: 0.3    // Allow zooming out for large workflows
+          padding: 0.2,
+          includeHiddenNodes: false,
+          minZoom: 0.8,
+          maxZoom: 1.0
         }}
+        minZoom={0.3}
+        maxZoom={1.2}
         style={{ width: '100%', height: '100%' }}
       >
         <Background 
@@ -476,25 +369,7 @@ export const DynamicWorkflowChart: React.FC<DynamicWorkflowChartProps> = ({
         />
         <Controls />
         <MiniMap 
-          nodeColor={(node) => {
-            // Use application-based colors in minimap too
-            const appColors = {
-              'mail': '#fbbf24',      // Yellow
-              'excel': '#10b981',     // Green  
-              'chrome': '#3b82f6',    // Blue
-              'database': '#ef4444',  // Red
-              'default': '#8b5cf6'    // Purple
-            }
-            
-            const nodeData = node.data || {}
-            const app = (nodeData.application || '').toLowerCase()
-            
-            if (app.includes('mail') || app.includes('outlook')) return appColors.mail
-            if (app.includes('excel') || app.includes('sheets')) return appColors.excel
-            if (app.includes('chrome') || app.includes('browser') || app.includes('wms')) return appColors.chrome
-            if (app.includes('database') || app.includes('erp')) return appColors.database
-            return appColors.default
-          }}
+          nodeColor="#6b7280"
           style={{
             backgroundColor: '#ffffff',
             border: '1px solid #d1d5db',

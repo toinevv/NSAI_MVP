@@ -1,0 +1,28 @@
+feat(supabase): native Supabase foundation + multi-tenant RLS + end-to-end data pipeline validation
+
+Auth-First Native Supabase migration and full data pipeline verification.
+
+Highlights (from OVERARCHING_PLAN.md):
+- Auth-first foundation: Replaced backend auth with Supabase Auth (JWT with organization context)
+- Native Supabase migration: Removed SQLAlchemy and converted all DB access to supabase.client
+- RLS policies: Organization-based row-level security on all critical tables
+- API conversion: Converted /recordings and /analysis endpoints to native Supabase calls
+- Multi-tenant schema: organization_id added to core tables; indexes and constraints in place
+
+Data Pipeline Validation (from DATA_PIPELINE_VALIDATION_REPORT.md):
+- Recording → Analysis (GPT-4V) → Results flow validated end-to-end
+- Stored raw GPT responses in analysis_results.raw_gpt_response
+- Stored parsed structured insights in analysis_results.structured_insights
+- Created individual records in automation_opportunities per opportunity
+- Frontend Results UI (4 tabs) connected and rendering data (Overview, Natural, Raw JSON, Workflow Chart)
+- Verified RLS filters data by organization across all queries
+
+Database Migrations:
+- Bulletproof migration (004) completed; complete multi-tenant migration (005) ready
+- Added supporting migration scripts and documentation
+
+Docs:
+- Added OVERARCHING_PLAN.md and DATA_PIPELINE_VALIDATION_REPORT.md detailing scope and validation
+
+Notes:
+- This commit captures the stable localhost development state prior to Supabase persistence hardening.

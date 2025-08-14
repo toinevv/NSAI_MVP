@@ -1,23 +1,26 @@
 """
 Results and insights endpoints for NewSystem.AI
-Serves analyzed workflow data and automation recommendations
-Focus: ROI calculations and actionable insights for logistics managers
+Serves analyzed workflow data and automation recommendations  
+Native Supabase implementation with multi-tenant support via RLS
 """
 
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 from uuid import UUID
-from sqlalchemy.orm import Session
+from datetime import datetime, timezone
 import logging
 import json
 
-from app.core.database import get_db
-from app.models.database import RecordingSession, AnalysisResult
-from app.services.insights import get_roi_calculator
+from app.api.v1.auth import get_current_user_from_token
+from app.services.supabase_client import get_supabase_client
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+# ============================================
+# RESPONSE MODELS
+# ============================================
 
 class AutomationOpportunity(BaseModel):
     id: str
@@ -27,6 +30,7 @@ class AutomationOpportunity(BaseModel):
     implementation_complexity: str
     roi_score: float
     description: str
+    confidence_score: Optional[float] = None
 
 class ResultsSummary(BaseModel):
     session_id: str
@@ -43,70 +47,161 @@ class RawAnalysisData(BaseModel):
     processing_info: Dict[str, Any]
     metadata: Dict[str, Any]
 
+# ============================================
+# HELPER FUNCTIONS
+# ============================================
+
+def transform_workflow_steps_to_chart(workflow_steps: List[Any]) -> Dict[str, Any]:
+    """
+    Transform raw workflow_steps from GPT-4V into ReactFlow chart format
+    Expected by DynamicWorkflowChart component
+    """
+    if not workflow_steps or len(workflow_steps) == 0:
+        return {"nodes": [], "edges": []}
+    
+    # Create nodes from workflow steps
+    nodes = []
+    for index, step in enumerate(workflow_steps):
+        # Determine step type based on action
+        action = step.get("action", "").lower()
+        if "open" in action or "switch" in action or "access" in action:
+            step_type = "application"
+        elif "copy" in action or "paste" in action or "enter" in action or "input" in action:
+            step_type = "action" 
+        elif "data" in action or "information" in action:
+            step_type = "data"
+        elif "check" in action or "verify" in action or "review" in action:
+            step_type = "decision"
+        else:
+            step_type = "action"
+        
+        node = {
+            "id": f"step-{index + 1}",
+            "label": step.get("action", f"Step {index + 1}"),
+            "type": step_type,
+            "metadata": {
+                "time": step.get("time_formatted") or (f"{step.get('time_estimate_seconds', 0)}s" if step.get('time_estimate_seconds') else ""),
+                "application": step.get("application", ""),
+                "purpose": step.get("purpose", ""),
+                "frames": len(step.get("visible_in_frames", []))
+            }
+        }
+        nodes.append(node)
+    
+    # Create edges between sequential steps
+    edges = []
+    for i in range(len(workflow_steps) - 1):
+        edge = {
+            "source": f"step-{i + 1}",
+            "target": f"step-{i + 2}",
+            "label": None,
+            "type": None
+        }
+        edges.append(edge)
+    
+    return {"nodes": nodes, "edges": edges}
+
+# ============================================
+# API ENDPOINTS
+# ============================================
+
 @router.get("/{session_id}")
 async def get_complete_results(
     session_id: str,
-    db: Session = Depends(get_db)
+    current_user: Dict[str, Any] = Depends(get_current_user_from_token)
 ):
     """
     Get complete analysis results for a session
-    Returns real data from AnalysisResult table
+    Native Supabase implementation with automatic RLS filtering
     """
     try:
-        # Get the recording session
-        recording = db.query(RecordingSession).filter(
-            RecordingSession.id == session_id
-        ).first()
+        logger.info(f"📊 GETTING RESULTS: Fetching complete results for session {session_id}")
         
-        if not recording:
+        supabase = get_supabase_client()
+        
+        # Get the recording session (RLS will filter by organization automatically)
+        recording_result = supabase.client.table('recording_sessions').select("*").eq('id', session_id).single().execute()
+        
+        if not recording_result.data:
+            logger.error(f"❌ RECORDING NOT FOUND: Session {session_id} not found or access denied")
             raise HTTPException(status_code=404, detail=f"Recording {session_id} not found")
         
-        # Get the analysis results
-        analysis = db.query(AnalysisResult).filter(
-            AnalysisResult.session_id == session_id
-        ).first()
+        recording = recording_result.data
+        logger.info(f"✅ RECORDING FOUND: {recording['title']} - {recording['status']}")
         
-        if not analysis:
+        # Get the analysis results (RLS will filter by organization automatically)
+        analysis_result = supabase.client.table('analysis_results').select("*").eq('session_id', session_id).single().execute()
+        
+        if not analysis_result.data:
+            logger.error(f"❌ ANALYSIS NOT FOUND: Analysis results not found for recording {session_id}")
             raise HTTPException(status_code=404, detail=f"Analysis results not found for recording {session_id}")
         
-        if analysis.status != "completed":
+        analysis = analysis_result.data
+        logger.info(f"✅ ANALYSIS FOUND: Status={analysis['status']}, Frames={analysis.get('frames_analyzed', 0)}")
+        
+        if analysis["status"] != "completed":
+            logger.info(f"⏳ ANALYSIS PENDING: Analysis is {analysis['status']}, returning status message")
             return {
                 "session_id": session_id,
-                "status": analysis.status,
-                "message": f"Analysis is {analysis.status}. Results will be available when complete.",
+                "status": analysis["status"],
+                "message": f"Analysis is {analysis['status']}. Results will be available when complete.",
                 "results": None
             }
         
         # Parse structured insights
-        insights = analysis.structured_insights or {}
+        insights = analysis.get("structured_insights") or {}
+        logger.info(f"📋 INSIGHTS: Found {len(insights)} insight categories")
+        
+        # Generate workflow_chart from raw GPT response if available
+        workflow_chart = None
+        raw_gpt_response = analysis.get("raw_gpt_response", {})
+        
+        # Try to get workflow steps from raw GPT response
+        if raw_gpt_response and isinstance(raw_gpt_response, dict):
+            analysis_data = raw_gpt_response.get("analysis", {})
+            workflow_steps = analysis_data.get("workflow_steps", [])
+            
+            if workflow_steps and len(workflow_steps) > 0:
+                workflow_chart = transform_workflow_steps_to_chart(workflow_steps)
+                logger.info(f"📊 WORKFLOW CHART: Generated chart with {len(workflow_chart['nodes'])} nodes")
+            else:
+                logger.warning(f"⚠️ NO WORKFLOW STEPS: No workflow_steps found in raw GPT response")
+        else:
+            logger.warning(f"⚠️ NO RAW RESPONSE: No raw GPT response available for workflow chart generation")
         
         # Build response with real data
         results = {
             "session_id": session_id,
             "status": "completed",
             "recording_info": {
-                "title": recording.title,
-                "duration_seconds": recording.duration_seconds,
-                "created_at": recording.created_at.isoformat()
+                "title": recording["title"],
+                "duration_seconds": recording["duration_seconds"] or 0,
+                "created_at": recording["created_at"]
             },
             "analysis_info": {
-                "frames_analyzed": analysis.frames_analyzed,
-                "confidence_score": float(analysis.confidence_score) if analysis.confidence_score else 0.0,
-                "processing_time_seconds": analysis.processing_time_seconds,
-                "analysis_cost": float(analysis.analysis_cost) if analysis.analysis_cost else 0.0
+                "frames_analyzed": analysis["frames_analyzed"] or 0,
+                "confidence_score": float(analysis["confidence_score"]) if analysis["confidence_score"] else 0.0,
+                "processing_time_seconds": analysis["processing_time_seconds"] or 0,
+                "analysis_cost": float(analysis["analysis_cost"]) if analysis["analysis_cost"] else 0.0
             },
             "summary": {
-                "total_time_analyzed": recording.duration_seconds or 0,
-                "automation_opportunities": analysis.automation_opportunities_count or 0,
-                "estimated_time_savings": float(analysis.time_savings_hours_weekly) if analysis.time_savings_hours_weekly else 0.0,
-                "confidence_score": float(analysis.confidence_score) if analysis.confidence_score else 0.0,
-                "annual_cost_savings": float(analysis.annual_cost_savings) if analysis.annual_cost_savings else 0.0
+                "total_time_analyzed": recording["duration_seconds"] or 0,
+                "automation_opportunities": analysis["automation_opportunities_count"] or 0,
+                "estimated_time_savings": float(analysis["time_savings_hours_weekly"]) if analysis["time_savings_hours_weekly"] else 0.0,
+                "confidence_score": float(analysis["confidence_score"]) if analysis["confidence_score"] else 0.0,
+                "annual_cost_savings": float(analysis["cost_savings_annual"]) if analysis["cost_savings_annual"] else 0.0
             },
             "workflows": insights.get("workflows", []),
             "automation_opportunities": insights.get("automation_opportunities", []),
             "time_analysis": insights.get("time_analysis", {}),
             "insights": insights.get("insights", [])
         }
+        
+        # Add workflow chart if we have it
+        if workflow_chart:
+            results["workflow_chart"] = workflow_chart
+        
+        logger.info(f"🎯 RESULTS COMPLETE: Returning complete results for session {session_id}")
         
         return {
             "results": results,
@@ -116,87 +211,136 @@ async def get_complete_results(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error retrieving results for session {session_id}: {e}")
+        logger.error(f"💥 ERROR: Failed to retrieve results for session {session_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to retrieve results: {str(e)}")
 
 @router.get("/{session_id}/summary")
 async def get_results_summary(
     session_id: str,
-    db: Session = Depends(get_db)
+    current_user: Dict[str, Any] = Depends(get_current_user_from_token)
 ):
     """
     Get executive summary of results
-    Returns real data from AnalysisResult table
+    Native Supabase implementation with RLS filtering
     """
     try:
-        # Get the recording and analysis
-        recording = db.query(RecordingSession).filter(
-            RecordingSession.id == session_id
-        ).first()
+        logger.info(f"📊 GETTING SUMMARY: Fetching summary for session {session_id}")
         
-        if not recording:
+        supabase = get_supabase_client()
+        
+        # Get the recording (RLS filters by organization)
+        recording_result = supabase.client.table('recording_sessions').select("*").eq('id', session_id).single().execute()
+        
+        if not recording_result.data:
+            logger.error(f"❌ RECORDING NOT FOUND: Session {session_id} not found")
             raise HTTPException(status_code=404, detail=f"Recording {session_id} not found")
         
-        analysis = db.query(AnalysisResult).filter(
-            AnalysisResult.session_id == session_id
-        ).first()
+        recording = recording_result.data
         
-        if not analysis:
+        # Get analysis results (RLS filters by organization)
+        analysis_result = supabase.client.table('analysis_results').select("*").eq('session_id', session_id).single().execute()
+        
+        if not analysis_result.data:
+            logger.error(f"❌ ANALYSIS NOT FOUND: Analysis results not found for recording {session_id}")
             raise HTTPException(status_code=404, detail=f"Analysis results not found for recording {session_id}")
         
-        return ResultsSummary(
+        analysis = analysis_result.data
+        
+        summary = ResultsSummary(
             session_id=session_id,
-            total_time_analyzed=recording.duration_seconds or 0,
-            automation_opportunities=analysis.automation_opportunities_count or 0,
-            estimated_time_savings=float(analysis.time_savings_hours_weekly) if analysis.time_savings_hours_weekly else 0.0,
-            confidence_score=float(analysis.confidence_score) if analysis.confidence_score else 0.0
+            total_time_analyzed=recording["duration_seconds"] or 0,
+            automation_opportunities=analysis["automation_opportunities_count"] or 0,
+            estimated_time_savings=float(analysis["time_savings_hours_weekly"]) if analysis["time_savings_hours_weekly"] else 0.0,
+            confidence_score=float(analysis["confidence_score"]) if analysis["confidence_score"] else 0.0
         )
+        
+        logger.info(f"✅ SUMMARY COMPLETE: {summary.automation_opportunities} opportunities, {summary.estimated_time_savings}h savings")
+        return summary
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error retrieving summary for session {session_id}: {e}")
+        logger.error(f"💥 ERROR: Failed to retrieve summary for session {session_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to retrieve summary: {str(e)}")
 
 @router.get("/{session_id}/flow")
 async def get_flow_chart_data(
     session_id: str,
-    db: Session = Depends(get_db)
+    current_user: Dict[str, Any] = Depends(get_current_user_from_token)
 ):
     """
     Get workflow flow chart data
-    Returns real flow data from analysis results
+    Native Supabase implementation with workflow_steps transformation
     """
     try:
-        # Get analysis results
-        analysis = db.query(AnalysisResult).filter(
-            AnalysisResult.session_id == session_id
-        ).first()
+        logger.info(f"📊 GETTING FLOW CHART: Fetching flow data for session {session_id}")
         
-        if not analysis:
+        supabase = get_supabase_client()
+        
+        # Get analysis results (RLS filters by organization)
+        analysis_result = supabase.client.table('analysis_results').select("*").eq('session_id', session_id).single().execute()
+        
+        if not analysis_result.data:
+            logger.error(f"❌ ANALYSIS NOT FOUND: Analysis results not found for recording {session_id}")
             raise HTTPException(status_code=404, detail=f"Analysis results not found for recording {session_id}")
         
-        if analysis.status != "completed":
+        analysis = analysis_result.data
+        
+        if analysis["status"] != "completed":
+            logger.info(f"⏳ ANALYSIS PENDING: Analysis is {analysis['status']}")
             return {
                 "session_id": session_id,
-                "status": analysis.status,
-                "message": f"Analysis is {analysis.status}. Flow chart will be available when complete.",
+                "status": analysis["status"],
+                "message": f"Analysis is {analysis['status']}. Flow chart will be available when complete.",
                 "flow_chart": None
             }
         
-        # Parse structured insights for workflow data
-        insights = analysis.structured_insights or {}
-        workflows = insights.get("workflows", [])
+        # Get flow chart data from raw GPT response
+        raw_gpt_response = analysis.get("raw_gpt_response", {})
+        flow_chart_data = None
         
-        # If we have workflow data, use it; otherwise provide a simple fallback
-        if workflows:
-            flow_chart_data = insights.get("flow_chart", {})
-        else:
-            # Generate simple flow chart from available data
+        if raw_gpt_response and isinstance(raw_gpt_response, dict):
+            analysis_data = raw_gpt_response.get("analysis", {})
+            workflow_steps = analysis_data.get("workflow_steps", [])
+            
+            if workflow_steps and len(workflow_steps) > 0:
+                # Transform workflow steps to flow chart format
+                flow_chart_data = {
+                    "nodes": [],
+                    "edges": []
+                }
+                
+                # Create nodes from workflow steps
+                for i, step in enumerate(workflow_steps):
+                    node = {
+                        "id": f"step_{i+1}",
+                        "type": "process",
+                        "label": step.get("action", f"Step {i+1}"),
+                        "timeSpent": step.get("time_estimate_seconds", 0),
+                        "automationPotential": 0.7  # Default automation potential
+                    }
+                    flow_chart_data["nodes"].append(node)
+                
+                # Create edges between sequential steps
+                for i in range(len(workflow_steps) - 1):
+                    edge = {
+                        "source": f"step_{i+1}",
+                        "target": f"step_{i+2}",
+                        "label": "next"
+                    }
+                    flow_chart_data["edges"].append(edge)
+                
+                logger.info(f"📊 FLOW CHART: Generated {len(flow_chart_data['nodes'])} nodes from workflow steps")
+            else:
+                logger.warning(f"⚠️ NO WORKFLOW STEPS: No workflow_steps found in analysis")
+        
+        # Fallback: Generate simple flow chart from available data
+        if not flow_chart_data:
+            logger.info(f"🔄 FALLBACK FLOW: Generating simple fallback flow chart")
             flow_chart_data = {
                 "nodes": [
                     {"id": "start", "type": "start", "label": "Workflow Start", "timeSpent": 0},
-                    {"id": "process", "type": "process", "label": "Manual Process", "timeSpent": analysis.time_savings_hours_weekly * 3600 if analysis.time_savings_hours_weekly else 0},
+                    {"id": "process", "type": "process", "label": "Manual Process", "timeSpent": analysis.get("time_savings_hours_weekly", 0) * 3600},
                     {"id": "end", "type": "end", "label": "Workflow Complete", "timeSpent": 0}
                 ],
                 "edges": [
@@ -213,52 +357,61 @@ async def get_flow_chart_data(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error retrieving flow chart for session {session_id}: {e}")
+        logger.error(f"💥 ERROR: Failed to retrieve flow chart for session {session_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to retrieve flow chart: {str(e)}")
 
 @router.get("/{session_id}/opportunities")
 async def get_automation_opportunities(
     session_id: str,
-    db: Session = Depends(get_db)
+    current_user: Dict[str, Any] = Depends(get_current_user_from_token)
 ):
     """
     Get automation opportunities list
-    Returns real opportunities from analysis results
+    Native Supabase implementation with RLS filtering
     """
     try:
-        # Get analysis results
-        analysis = db.query(AnalysisResult).filter(
-            AnalysisResult.session_id == session_id
-        ).first()
+        logger.info(f"📊 GETTING OPPORTUNITIES: Fetching opportunities for session {session_id}")
         
-        if not analysis:
+        supabase = get_supabase_client()
+        
+        # Get analysis results (RLS filters by organization)
+        analysis_result = supabase.client.table('analysis_results').select("*").eq('session_id', session_id).single().execute()
+        
+        if not analysis_result.data:
+            logger.error(f"❌ ANALYSIS NOT FOUND: Analysis results not found for recording {session_id}")
             raise HTTPException(status_code=404, detail=f"Analysis results not found for recording {session_id}")
         
-        if analysis.status != "completed":
+        analysis = analysis_result.data
+        
+        if analysis["status"] != "completed":
+            logger.info(f"⏳ ANALYSIS PENDING: Analysis is {analysis['status']}")
             return {
                 "session_id": session_id,
-                "status": analysis.status,
-                "message": f"Analysis is {analysis.status}. Opportunities will be available when complete.",
+                "status": analysis["status"],
+                "message": f"Analysis is {analysis['status']}. Opportunities will be available when complete.",
                 "opportunities": []
             }
         
-        # Parse structured insights for automation opportunities
-        insights = analysis.structured_insights or {}
-        opportunities_data = insights.get("automation_opportunities", [])
+        # Get opportunities from automation_opportunities table (RLS filters by organization)
+        opportunities_result = supabase.client.table('automation_opportunities').select("*").eq('session_id', session_id).execute()
         
-        # Convert to AutomationOpportunity models
         opportunities = []
-        for i, opp in enumerate(opportunities_data):
-            if isinstance(opp, dict):
-                opportunities.append(AutomationOpportunity(
-                    id=opp.get("id", f"opp_{i+1}"),
-                    workflow_type=opp.get("workflow_type", "unknown"),
-                    priority=opp.get("priority", "medium"),
-                    time_saved_weekly_hours=float(opp.get("time_saved_weekly_hours", 0)),
-                    implementation_complexity=opp.get("implementation_complexity", "consider"),
-                    roi_score=float(opp.get("roi_score", 0)),
-                    description=opp.get("description", "Automation opportunity identified")
-                ))
+        if opportunities_result.data:
+            for opp in opportunities_result.data:
+                # Convert database record to API format
+                opportunity = AutomationOpportunity(
+                    id=str(opp["id"]),
+                    workflow_type=opp["opportunity_type"],
+                    priority=opp["priority"],
+                    time_saved_weekly_hours=float(opp["current_time_per_occurrence_seconds"] or 0) / 3600 * 5,  # Rough weekly estimate
+                    implementation_complexity=opp["automation_complexity"],
+                    roi_score=float(opp["roi_percentage"] or 0),
+                    description=opp["description"],
+                    confidence_score=float(opp["confidence_score"]) if opp["confidence_score"] else None
+                )
+                opportunities.append(opportunity)
+        
+        logger.info(f"✅ OPPORTUNITIES: Found {len(opportunities)} automation opportunities")
         
         return {
             "opportunities": opportunities,
@@ -268,7 +421,7 @@ async def get_automation_opportunities(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error retrieving opportunities for session {session_id}: {e}")
+        logger.error(f"💥 ERROR: Failed to retrieve opportunities for session {session_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to retrieve opportunities: {str(e)}")
 
 @router.get("/{session_id}/cost")
@@ -276,50 +429,82 @@ async def get_cost_analysis(
     session_id: str,
     hourly_rate: Optional[float] = 25.0,
     implementation_budget: Optional[float] = None,
-    db: Session = Depends(get_db)
+    current_user: Dict[str, Any] = Depends(get_current_user_from_token)
 ):
     """
     Get cost-benefit analysis
-    Uses real ROI calculator with analysis data
+    Native Supabase implementation using analysis data
     """
     try:
-        # Get analysis results
-        analysis = db.query(AnalysisResult).filter(
-            AnalysisResult.session_id == session_id
-        ).first()
+        logger.info(f"📊 GETTING COST ANALYSIS: Fetching cost analysis for session {session_id}")
         
-        if not analysis:
+        supabase = get_supabase_client()
+        
+        # Get analysis results (RLS filters by organization)
+        analysis_result = supabase.client.table('analysis_results').select("*").eq('session_id', session_id).single().execute()
+        
+        if not analysis_result.data:
+            logger.error(f"❌ ANALYSIS NOT FOUND: Analysis results not found for recording {session_id}")
             raise HTTPException(status_code=404, detail=f"Analysis results not found for recording {session_id}")
         
-        if analysis.status != "completed":
+        analysis = analysis_result.data
+        
+        if analysis["status"] != "completed":
+            logger.info(f"⏳ ANALYSIS PENDING: Analysis is {analysis['status']}")
             return {
                 "session_id": session_id,
-                "status": analysis.status,
-                "message": f"Analysis is {analysis.status}. Cost analysis will be available when complete.",
+                "status": analysis["status"],
+                "message": f"Analysis is {analysis['status']}. Cost analysis will be available when complete.",
                 "cost_analysis": None
             }
         
-        # Use the ROI calculator
-        calculator = get_roi_calculator()
-        insights = analysis.structured_insights or {}
+        # Calculate cost analysis from analysis data
+        time_savings_weekly = float(analysis["time_savings_hours_weekly"] or 0)
+        current_monthly_hours = time_savings_weekly * 4  # 4 weeks per month
+        current_monthly_cost = current_monthly_hours * hourly_rate
         
-        roi_metrics = calculator.calculate_roi(
-            insights,
-            hourly_rate=hourly_rate,
-            implementation_budget=implementation_budget
-        )
+        # After automation
+        projected_monthly_hours = current_monthly_hours * 0.2  # Assume 80% time savings
+        projected_monthly_cost = projected_monthly_hours * hourly_rate
         
-        # Extract cost analysis from ROI metrics
+        # Implementation cost (use budget or estimate)
+        implementation_cost = implementation_budget or 5000.0  # Default $5k implementation
+        
+        # Calculate savings
+        monthly_savings = current_monthly_cost - projected_monthly_cost
+        annual_savings = monthly_savings * 12
+        
+        # Calculate payback period
+        payback_period_days = int((implementation_cost / monthly_savings) * 30) if monthly_savings > 0 else 0
+        
         cost_analysis = {
-            "current_monthly_cost": roi_metrics["cost_savings"]["monthly_usd"] + roi_metrics["time_savings"]["current_monthly_hours"] * hourly_rate,
-            "projected_monthly_cost": roi_metrics["time_savings"]["current_monthly_hours"] * hourly_rate - roi_metrics["cost_savings"]["monthly_usd"],
-            "implementation_cost": implementation_budget or roi_metrics.get("implementation", {}).get("estimated_cost_usd", 5000),
-            "payback_period_days": roi_metrics.get("implementation", {}).get("payback_period_days", 0),
-            "annual_savings": roi_metrics["cost_savings"]["annual_usd"],
+            "current_monthly_cost": current_monthly_cost,
+            "projected_monthly_cost": projected_monthly_cost,
+            "implementation_cost": implementation_cost,
+            "payback_period_days": payback_period_days,
+            "annual_savings": annual_savings,
             "hourly_rate_used": hourly_rate,
-            "time_savings_weekly_hours": roi_metrics["time_savings"]["weekly_hours"],
-            "confidence_score": float(analysis.confidence_score) if analysis.confidence_score else 0.0
+            "time_savings_weekly_hours": time_savings_weekly,
+            "confidence_score": float(analysis["confidence_score"]) if analysis["confidence_score"] else 0.0
         }
+        
+        # Build ROI metrics
+        roi_metrics = {
+            "time_savings": {
+                "weekly_hours": time_savings_weekly,
+                "current_monthly_hours": current_monthly_hours
+            },
+            "cost_savings": {
+                "monthly_usd": monthly_savings,
+                "annual_usd": annual_savings
+            },
+            "implementation": {
+                "estimated_cost_usd": implementation_cost,
+                "payback_period_days": payback_period_days
+            }
+        }
+        
+        logger.info(f"💰 COST ANALYSIS: ${annual_savings}/year savings, {payback_period_days} days payback")
         
         return {
             "cost_analysis": cost_analysis,
@@ -330,73 +515,77 @@ async def get_cost_analysis(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error calculating cost analysis for session {session_id}: {e}")
+        logger.error(f"💥 ERROR: Failed to calculate cost analysis for session {session_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to calculate cost analysis: {str(e)}")
 
 @router.get("/{session_id}/raw")
 async def get_raw_analysis_data(
     session_id: str,
-    db: Session = Depends(get_db)
+    current_user: Dict[str, Any] = Depends(get_current_user_from_token)
 ):
     """
     Get raw GPT-4V analysis data for development and debugging
-    Returns complete raw GPT response and processing metadata
+    Native Supabase implementation with complete raw response data
     """
     try:
-        # Get the recording session
-        recording = db.query(RecordingSession).filter(
-            RecordingSession.id == session_id
-        ).first()
+        logger.info(f"🔍 GETTING RAW DATA: Fetching raw analysis data for session {session_id}")
         
-        if not recording:
+        supabase = get_supabase_client()
+        
+        # Get the recording session (RLS filters by organization)
+        recording_result = supabase.client.table('recording_sessions').select("*").eq('id', session_id).single().execute()
+        
+        if not recording_result.data:
+            logger.error(f"❌ RECORDING NOT FOUND: Session {session_id} not found")
             raise HTTPException(status_code=404, detail=f"Recording {session_id} not found")
         
-        # Get the analysis results
-        analysis = db.query(AnalysisResult).filter(
-            AnalysisResult.session_id == session_id
-        ).first()
+        recording = recording_result.data
         
-        if not analysis:
+        # Get the analysis results (RLS filters by organization)
+        analysis_result = supabase.client.table('analysis_results').select("*").eq('session_id', session_id).single().execute()
+        
+        if not analysis_result.data:
+            logger.error(f"❌ ANALYSIS NOT FOUND: Analysis results not found for recording {session_id}")
             raise HTTPException(status_code=404, detail=f"Analysis results not found for recording {session_id}")
         
+        analysis = analysis_result.data
+        
         # Parse raw GPT response
-        raw_gpt_response = analysis.raw_gpt_response or {}
-        structured_insights = analysis.structured_insights or {}
+        raw_gpt_response = analysis.get("raw_gpt_response") or {}
+        structured_insights = analysis.get("structured_insights") or {}
         
         # Build comprehensive processing info
         processing_info = {
-            "gpt_version": analysis.gpt_version,
-            "frames_analyzed": analysis.frames_analyzed,
-            "processing_time_seconds": analysis.processing_time_seconds,
-            "analysis_cost": float(analysis.analysis_cost) if analysis.analysis_cost else 0.0,
-            "confidence_score": float(analysis.confidence_score) if analysis.confidence_score else 0.0,
-            "processing_started_at": analysis.processing_started_at.isoformat() if analysis.processing_started_at else None,
-            "processing_completed_at": analysis.processing_completed_at.isoformat() if analysis.processing_completed_at else None,
-            "status": analysis.status,
-            "error_message": analysis.error_message
+            "gpt_version": analysis["gpt_version"],
+            "frames_analyzed": analysis["frames_analyzed"],
+            "processing_time_seconds": analysis["processing_time_seconds"],
+            "analysis_cost": float(analysis["analysis_cost"]) if analysis["analysis_cost"] else 0.0,
+            "confidence_score": float(analysis["confidence_score"]) if analysis["confidence_score"] else 0.0,
+            "processing_started_at": analysis["processing_started_at"],
+            "processing_completed_at": analysis["processing_completed_at"],
+            "status": analysis["status"],
+            "error_message": analysis["error_message"]
         }
         
-        # Extract token usage from multiple sources
+        # Extract token usage from raw GPT response
         token_usage = {}
-        # First try raw GPT response
         if raw_gpt_response and "usage" in raw_gpt_response:
             token_usage = raw_gpt_response["usage"]
-        # Fall back to structured insights metadata
         elif structured_insights and "metadata" in structured_insights and "token_usage" in structured_insights["metadata"]:
             token_usage = structured_insights["metadata"]["token_usage"]
         
         # Build metadata
         metadata = {
-            "recording_duration_seconds": recording.duration_seconds,
-            "recording_file_size_bytes": recording.file_size_bytes,
-            "workflow_type": recording.workflow_type,
+            "recording_duration_seconds": recording["duration_seconds"],
+            "recording_file_size_bytes": recording["file_size_bytes"],
+            "workflow_type": recording["workflow_type"],
             "token_usage": token_usage,
             "has_raw_response": bool(raw_gpt_response),
             "has_structured_insights": bool(structured_insights),
-            "analysis_id": str(analysis.id)
+            "analysis_id": str(analysis["id"])
         }
         
-        # Structure the raw GPT response for frontend compatibility
+        # Format raw response for frontend compatibility
         formatted_raw_response = {
             "analysis": raw_gpt_response,
             "usage": token_usage,
@@ -407,9 +596,11 @@ async def get_raw_analysis_data(
             }
         }
 
+        logger.info(f"🔍 RAW DATA COMPLETE: Returning complete raw analysis data for session {session_id}")
+
         return {
             "session_id": session_id,
-            "status": analysis.status,
+            "status": analysis["status"],
             "raw_gpt_response": formatted_raw_response,
             "structured_insights": structured_insights,
             "processing_info": processing_info,
@@ -420,8 +611,5 @@ async def get_raw_analysis_data(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error retrieving raw analysis data for session {session_id}: {e}")
+        logger.error(f"💥 ERROR: Failed to retrieve raw analysis data for session {session_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to retrieve raw analysis data: {str(e)}")
-
-# Export functionality removed per CTO feedback - not needed for MVP
-# Focus on core recording→analysis→results pipeline
