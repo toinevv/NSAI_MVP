@@ -17,7 +17,8 @@ import ReactFlow, {
   type Connection,
   ConnectionMode,
   MarkerType,
-  Position
+  Position,
+  Handle
 } from 'reactflow'
 import 'reactflow/dist/style.css'
 import { 
@@ -37,7 +38,10 @@ const ApplicationNode = ({ data }: any) => {
   const colors = getApplicationColors(data.application)
   
   return (
-    <div className={`px-4 py-3 shadow-lg rounded-lg ${colors.bg} border-2 ${colors.border} min-w-[220px]`}>
+    <div className={`px-4 py-3 shadow-lg rounded-lg ${colors.bg} border-2 ${colors.border} min-w-[220px] relative`}>
+      {/* Input handle at the top */}
+      <Handle type="target" position={Position.Top} className="w-3 h-3" />
+      
       <div className="space-y-2">
         {/* Header with icon and action */}
         <div className="flex items-center space-x-2">
@@ -67,23 +71,31 @@ const ApplicationNode = ({ data }: any) => {
           )}
         </div>
       </div>
+      
+      {/* Output handle at the bottom */}
+      <Handle type="source" position={Position.Bottom} className="w-3 h-3" />
     </div>
   )
 }
 
 const ActionNode = ({ data }: any) => {
+  const colors = getApplicationColors(data.application)
+  
   return (
-    <div className="px-4 py-3 shadow-md rounded-md bg-orange-50 border border-orange-300 min-w-[220px]">
+    <div className={`px-4 py-3 shadow-md rounded-md ${colors.bg} border ${colors.border} min-w-[220px] relative`}>
+      {/* Input handle at the top */}
+      <Handle type="target" position={Position.Top} className="w-3 h-3" />
+      
       <div className="space-y-2">
         {/* Header with icon and action */}
         <div className="flex items-center space-x-2">
-          <MousePointer className="w-4 h-4 text-orange-600 flex-shrink-0" />
+          <MousePointer className={`w-4 h-4 ${colors.text} flex-shrink-0`} />
           <div className="text-sm font-bold text-gray-800 leading-tight">{data.label}</div>
         </div>
         
         {/* Purpose if available */}
         {data.purpose && (
-          <div className="text-xs text-gray-600 italic border-l-2 border-orange-200 pl-2">
+          <div className={`text-xs text-gray-600 italic border-l-2 ${colors.accent} pl-2`}>
             {data.purpose}
           </div>
         )}
@@ -97,29 +109,37 @@ const ActionNode = ({ data }: any) => {
             </div>
           )}
           {data.application && (
-            <div className="text-right text-orange-600 font-medium truncate max-w-[100px]">
+            <div className={`text-right ${colors.text} font-medium truncate max-w-[100px]`}>
               {data.application}
             </div>
           )}
         </div>
       </div>
+      
+      {/* Output handle at the bottom */}
+      <Handle type="source" position={Position.Bottom} className="w-3 h-3" />
     </div>
   )
 }
 
 const DataNode = ({ data }: any) => {
+  const colors = getApplicationColors(data.application)
+  
   return (
-    <div className="px-4 py-3 shadow-md rounded bg-green-50 border border-green-300 min-w-[220px]">
+    <div className={`px-4 py-3 shadow-md rounded ${colors.bg} border ${colors.border} min-w-[220px] relative`}>
+      {/* Input handle at the top */}
+      <Handle type="target" position={Position.Top} className="w-3 h-3" />
+      
       <div className="space-y-2">
         {/* Header with icon and action */}
         <div className="flex items-center space-x-2">
-          <Database className="w-4 h-4 text-green-600 flex-shrink-0" />
+          <Database className={`w-4 h-4 ${colors.text} flex-shrink-0`} />
           <div className="text-sm font-bold text-gray-800 leading-tight">{data.label}</div>
         </div>
         
         {/* Purpose if available */}
         {data.purpose && (
-          <div className="text-xs text-gray-600 italic border-l-2 border-green-200 pl-2">
+          <div className={`text-xs text-gray-600 italic border-l-2 ${colors.accent} pl-2`}>
             {data.purpose}
           </div>
         )}
@@ -133,19 +153,27 @@ const DataNode = ({ data }: any) => {
             </div>
           )}
           {data.application && (
-            <div className="text-right text-green-600 font-medium truncate max-w-[100px]">
+            <div className={`text-right ${colors.text} font-medium truncate max-w-[100px]`}>
               {data.application}
             </div>
           )}
         </div>
       </div>
+      
+      {/* Output handle at the bottom */}
+      <Handle type="source" position={Position.Bottom} className="w-3 h-3" />
     </div>
   )
 }
 
 const DecisionNode = ({ data }: any) => {
+  const colors = getApplicationColors(data.application)
+  
   return (
-    <div className="w-[180px] h-[180px] shadow-md transform rotate-45 bg-purple-50 border-2 border-purple-400 flex items-center justify-center">
+    <div className={`w-[180px] h-[180px] shadow-md transform rotate-45 ${colors.bg} border-2 ${colors.border} flex items-center justify-center relative`}>
+      {/* Input handle at the top */}
+      <Handle type="target" position={Position.Top} className="w-3 h-3" style={{ top: '-25px' }} />
+      
       <div className="transform -rotate-45 text-center px-4 max-w-[160px]">
         {/* Main action/question */}
         <div className="text-sm font-bold text-gray-800 leading-tight mb-1">{data.label}</div>
@@ -165,6 +193,9 @@ const DecisionNode = ({ data }: any) => {
           </div>
         )}
       </div>
+      
+      {/* Output handle at the bottom */}
+      <Handle type="source" position={Position.Bottom} className="w-3 h-3" style={{ bottom: '-25px' }} />
     </div>
   )
 }
@@ -267,26 +298,33 @@ const getApplicationColors = (appName: string) => {
   }
 }
 
-// Auto-layout function using Dagre
+// Professional flowchart layout function
 const getLayoutedElements = (nodes: Node[], edges: Edge[]) => {
-  const nodeWidth = 150
-  const nodeHeight = 60
-  const horizontalSpacing = 200
-  const verticalSpacing = 100
+  // Enhanced spacing for professional appearance
+  const nodeWidth = 220  // Match min-width of enhanced nodes
+  const nodeHeight = 120 // Accommodate richer content
+  const horizontalSpacing = 300 // More generous horizontal spacing
+  const verticalSpacing = 150   // Better vertical breathing room
 
-  // Simple left-to-right layout
+  // Professional top-to-bottom flowchart layout
+  const maxNodesPerRow = 3  // Reduced for better readability
+  
   const layoutedNodes = nodes.map((node, index) => {
-    const column = index % 4
-    const row = Math.floor(index / 4)
+    const column = index % maxNodesPerRow
+    const row = Math.floor(index / maxNodesPerRow)
+    
+    // Center nodes when fewer than max per row
+    const nodesInRow = Math.min(maxNodesPerRow, nodes.length - (row * maxNodesPerRow))
+    const rowOffset = (maxNodesPerRow - nodesInRow) * horizontalSpacing / 2
     
     return {
       ...node,
       position: {
-        x: column * horizontalSpacing,
-        y: row * verticalSpacing
+        x: column * horizontalSpacing + rowOffset + 50, // Extra margin
+        y: row * verticalSpacing + 50  // Top margin
       },
-      targetPosition: Position.Left,
-      sourcePosition: Position.Right
+      targetPosition: Position.Top,    // Top-to-bottom flow
+      sourcePosition: Position.Bottom
     }
   })
 
@@ -327,12 +365,14 @@ export const DynamicWorkflowChart: React.FC<DynamicWorkflowChartProps> = ({
       animated: edge.type === 'repeat',
       markerEnd: {
         type: MarkerType.ArrowClosed,
-        width: 20,
-        height: 20
+        width: 25,    // Larger arrow for better visibility
+        height: 25,
+        color: '#374151'  // Darker color for prominence
       },
       style: {
-        strokeWidth: 2,
-        stroke: edge.type === 'bottleneck' ? '#ef4444' : '#94a3b8'
+        strokeWidth: 3,  // Thicker lines for professional appearance
+        stroke: edge.type === 'bottleneck' ? '#ef4444' : '#374151',  // Darker default color
+        strokeDasharray: edge.type === 'parallel' ? '5 5' : undefined  // Dashed for parallel flows
       }
     }))
   }, [data])
@@ -369,7 +409,7 @@ export const DynamicWorkflowChart: React.FC<DynamicWorkflowChartProps> = ({
   }
 
   return (
-    <div className={`h-96 bg-gray-50 rounded-lg overflow-hidden ${className}`} style={{ width: '100%', height: '384px' }}>
+    <div className={`h-[500px] bg-white rounded-lg overflow-hidden border border-gray-200 shadow-sm ${className}`} style={{ width: '100%', height: '500px' }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -381,27 +421,41 @@ export const DynamicWorkflowChart: React.FC<DynamicWorkflowChartProps> = ({
         connectionMode={ConnectionMode.Loose}
         fitView
         fitViewOptions={{
-          padding: 0.2,
-          maxZoom: 1.5,
-          minZoom: 0.5
+          padding: 0.15,  // Tighter padding for more professional look
+          maxZoom: 1.2,   // Slightly less zoom for better readability
+          minZoom: 0.3    // Allow zooming out more for large workflows
         }}
         style={{ width: '100%', height: '100%' }}
       >
-        <Background color="#94a3b8" gap={16} />
+        <Background 
+          color="#e5e7eb" 
+          gap={20}        // Larger grid for cleaner appearance
+        />
         <Controls />
         <MiniMap 
           nodeColor={(node) => {
-            switch (node.type) {
-              case 'application': return '#3b82f6'
-              case 'action': return '#f97316'
-              case 'data': return '#10b981'
-              case 'decision': return '#a855f7'
-              default: return '#6b7280'
+            // Use application-based colors in minimap too
+            const appColors = {
+              'mail': '#fbbf24',      // Yellow
+              'excel': '#10b981',     // Green  
+              'chrome': '#3b82f6',    // Blue
+              'database': '#ef4444',  // Red
+              'default': '#8b5cf6'    // Purple
             }
+            
+            const nodeData = node.data || {}
+            const app = (nodeData.application || '').toLowerCase()
+            
+            if (app.includes('mail') || app.includes('outlook')) return appColors.mail
+            if (app.includes('excel') || app.includes('sheets')) return appColors.excel
+            if (app.includes('chrome') || app.includes('browser') || app.includes('wms')) return appColors.chrome
+            if (app.includes('database') || app.includes('erp')) return appColors.database
+            return appColors.default
           }}
           style={{
-            backgroundColor: '#f3f4f6',
-            border: '1px solid #d1d5db'
+            backgroundColor: '#ffffff',
+            border: '1px solid #d1d5db',
+            borderRadius: '6px'
           }}
         />
       </ReactFlow>
