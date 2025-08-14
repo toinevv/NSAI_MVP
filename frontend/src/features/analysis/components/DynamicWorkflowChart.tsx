@@ -70,7 +70,7 @@ const ApplicationNode = ({ data }: any) => {
             </div>
           )}
           {data.application && (
-            <div className={`text-right ${colors.text} font-medium truncate max-w-[100px]`}>
+            <div className={`text-right ${colors.text} font-medium text-xs`}>
               {data.application}
             </div>
           )}
@@ -124,7 +124,7 @@ const ActionNode = ({ data }: any) => {
             </div>
           )}
           {data.application && (
-            <div className={`text-right ${colors.text} font-medium truncate max-w-[100px]`}>
+            <div className={`text-right ${colors.text} font-medium text-xs`}>
               {data.application}
             </div>
           )}
@@ -178,7 +178,7 @@ const DataNode = ({ data }: any) => {
             </div>
           )}
           {data.application && (
-            <div className={`text-right ${colors.text} font-medium truncate max-w-[100px]`}>
+            <div className={`text-right ${colors.text} font-medium text-xs`}>
               {data.application}
             </div>
           )}
@@ -348,17 +348,22 @@ const getApplicationColors = (appName: string) => {
 
 // Professional flowchart layout function
 const getLayoutedElements = (nodes: Node[], edges: Edge[]) => {
-  // More compact spacing for better scanning while maintaining readability
-  const verticalSpacing = 140   // Reduced from 180px for more compact layout
-  const startY = 60             // Reduced top margin
-  const centerX = 350           // Slightly adjusted center for better balance
+  // Compact spacing for better scanning
+  const verticalSpacing = 140   
+  const startY = 60             
+  const nodeWidth = 220         // Min-width of our nodes
   
-  // Single vertical column for clean, scannable flowchart
+  // Center nodes properly in the available space
+  // Using a reasonable container assumption and centering the nodes
+  const containerWidth = 800    // Assumption based on typical chart width
+  const centerX = (containerWidth / 2) - (nodeWidth / 2)
+  
+  // Single vertical column for clean flowchart
   const layoutedNodes = nodes.map((node, index) => {
     return {
       ...node,
       position: {
-        x: centerX - 110,  // Center the 220px wide nodes
+        x: centerX,  // Properly center the nodes
         y: startY + (index * verticalSpacing)
       },
       targetPosition: Position.Top,    // Top-to-bottom flow
@@ -399,17 +404,17 @@ export const DynamicWorkflowChart: React.FC<DynamicWorkflowChartProps> = ({
       source: edge.source,
       target: edge.target,
       label: edge.label,
-      type: 'straight',  // Straight edges for perfectly vertical arrows
+      type: 'straight',  // Straight edges for clean vertical arrows
       animated: edge.type === 'repeat',
       markerEnd: {
         type: MarkerType.ArrowClosed,
-        width: 24,    // Larger arrowhead for better visibility
-        height: 24,
-        color: '#1f2937'  // Darker color for prominence
+        width: 20,    // Clean size for professional look
+        height: 20,
+        color: '#374151'  // Clean professional color
       },
       style: {
-        strokeWidth: 3,  // Bolder lines to match node visual weight
-        stroke: edge.type === 'bottleneck' ? '#ef4444' : '#1f2937',  // Darker for prominence
+        strokeWidth: 2,  // Clean professional thickness
+        stroke: edge.type === 'bottleneck' ? '#ef4444' : '#374151',  // Clean color
         strokeDasharray: edge.type === 'parallel' ? '5 5' : undefined
       }
     }))
@@ -459,12 +464,10 @@ export const DynamicWorkflowChart: React.FC<DynamicWorkflowChartProps> = ({
         connectionMode={ConnectionMode.Loose}
         fitView
         fitViewOptions={{
-          padding: 0.1,   // Even tighter padding for compact layout
-          maxZoom: 1.0,   // Prevent zoom-in to maintain precise alignment
+          padding: 0.15,  // Normal padding for professional look
+          maxZoom: 1.2,   // Normal zoom for readability
           minZoom: 0.3    // Allow zooming out for large workflows
         }}
-        snapToGrid={true}  // Force perfect grid alignment
-        snapGrid={[20, 20]} // 20px snap grid for perfect positioning
         style={{ width: '100%', height: '100%' }}
       >
         <Background 
