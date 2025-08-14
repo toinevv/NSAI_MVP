@@ -21,6 +21,8 @@ Our database is designed with a logical, coherent structure that supports:
 ### Organization & User Management
 - `organizations` - Multi-tenant organization data
 - `users` - Extended user profiles (references Supabase auth.users)
+- `leads` - is connected to the front end so has nothin to do witht this build(PROTECTED)
+- `use_cases` - is connected to the front end so has nothin to do witht this build(PROTECTED)
 
 ### Recording Pipeline
 - `recordings` - Screen recording sessions

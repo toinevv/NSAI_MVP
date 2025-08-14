@@ -134,16 +134,17 @@ export const ManualVideoUpload: React.FC<ManualVideoUploadProps> = ({
 
       <div className="space-y-4">
         {/* File Input Area */}
-        <div 
-          onClick={() => fileInputRef.current?.click()}
-          className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-teal-400 transition-colors"
+        <label 
+          htmlFor="video-file-input"
+          className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-teal-400 transition-colors block"
         >
           <input
+            id="video-file-input"
             ref={fileInputRef}
             type="file"
             accept="video/*"
             onChange={handleFileSelect}
-            className="hidden"
+            className="sr-only"
           />
           
           {selectedFile ? (
@@ -173,7 +174,7 @@ export const ManualVideoUpload: React.FC<ManualVideoUploadProps> = ({
               <p className="text-xs text-gray-400">MP4, WebM, MOV up to 500MB</p>
             </div>
           )}
-        </div>
+        </label>
 
         {/* Upload Progress */}
         {uploadStatus === 'uploading' && (
