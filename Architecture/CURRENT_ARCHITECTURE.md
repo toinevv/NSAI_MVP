@@ -1,0 +1,662 @@
+# NewSystem.AI Current Architecture
+## Living Documentation - January 2025
+
+> **Document Version**: 1.0.0  
+> **Last Updated**: January 2025  
+> **Status**: Production-Ready MVP  
+> **Codebase Location**: `/NSAI_MVP`
+
+---
+
+## Table of Contents
+
+1. [Executive Summary](#1-executive-summary)
+2. [System Overview](#2-system-overview)
+3. [Frontend Architecture](#3-frontend-architecture)
+4. [Backend Architecture](#4-backend-architecture)
+5. [Database Design](#5-database-design)
+6. [AI Integration](#6-ai-integration)
+7. [Infrastructure & Deployment](#7-infrastructure--deployment)
+8. [Development Guide](#8-development-guide)
+9. [Known Issues & Technical Debt](#9-known-issues--technical-debt)
+
+---
+
+## 1. Executive Summary
+
+### Mission Statement
+**To save 1,000,000 operator hours monthly by transforming how logistics companies capture, understand, and automate their operational workflows.**
+
+### Current State (January 2025)
+- ✅ **Production-ready platform** with screen recording and AI analysis
+- ✅ **Pure Supabase architecture** (zero SQLAlchemy)
+- ✅ **GPT-4o integration** with cost-optimized frame extraction
+- ✅ **Multi-tenant support** via organization_id columns
+- ✅ **Comprehensive error handling** and retry mechanisms
+- ✅ **Real data transparency** (no mock data)
+
+### Key Achievements vs Original Plan
+
+| Component | Planned (August 2024) | Delivered (January 2025) | Status |
+|-----------|----------------------|-------------------------|---------|
+| Frontend | Basic React UI | Full React/TypeScript/Vite with ReactFlow | ✅ Exceeded |
+| Backend | FastAPI + SQLAlchemy | FastAPI + Pure Supabase | ✅ Better |
+| Database | 7-10 tables | 12 tables with multi-tenant | ✅ Expanded |
+| AI Model | GPT-4V | GPT-4o with optimized pipeline | ✅ Updated |
+| Authentication | Basic JWT | Full Supabase Auth + Org context | ✅ Enhanced |
+| Results UI | Simple dashboard | 4-tab interface with flow charts | ✅ Exceeded |
+
+---
+
+## 2. System Overview
+
+### 2.1 High-Level Architecture
+
+```
+┌─────────────────── Modern Web Frontend ─────────────────────┐
+│                                                             │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐        │
+│  │  Recording  │  │  Analysis   │  │   Results   │        │
+│  │  Dashboard  │  │  Pipeline   │  │  Dashboard  │        │
+│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘        │
+│         │                │                │               │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │     React + TypeScript + Vite + Tailwind CSS       │   │
+│  │     ReactFlow + Framer Motion + Lucide Icons       │   │
+│  └─────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+          │                │                │
+          ▼                ▼                ▼
+┌─────────────────── FastAPI Backend ─────────────────────────┐
+│                                                             │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐        │
+│  │ Recording   │  │  Analysis   │  │  Results &  │        │
+│  │   API       │  │   Engine    │  │  Insights   │        │
+│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘        │
+│         │                │                │               │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐        │
+│  │ Upload      │  │   GPT-4o    │  │ ROI & Cost  │        │
+│  │ Queue       │  │ Integration │  │ Calculator  │        │
+│  └─────────────┘  └─────────────┘  └─────────────┘        │
+└─────────────────────────────────────────────────────────────┘
+          │                │                │
+          ▼                ▼                ▼
+┌─────────────────── Data & Storage Layer ───────────────────┐
+│                                                             │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐        │
+│  │  Supabase   │  │  Supabase   │  │   OpenAI    │        │
+│  │ PostgreSQL  │  │   Storage   │  │   GPT-4o    │        │
+│  │ 12 Tables   │  │Video Chunks │  │     API     │        │
+│  └─────────────┘  └─────────────┘  └─────────────┘        │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 2.2 Technology Stack
+
+#### Frontend
+- **Framework**: React 19.1.0
+- **Language**: TypeScript 5.8.3
+- **Build Tool**: Vite 7.0.4
+- **Styling**: Tailwind CSS 4.1.11
+- **State Management**: React Context + Hooks
+- **Routing**: React Router DOM 7.8.0
+- **UI Libraries**:
+  - ReactFlow 11.11.4 (workflow visualization)
+  - Framer Motion 12.23.12 (animations)
+  - Lucide React 0.536.0 (icons)
+- **HTTP Client**: Axios 1.11.0
+- **Auth**: Supabase JS 2.53.0
+
+#### Backend
+- **Framework**: FastAPI 0.104.1
+- **Server**: Uvicorn 0.24.0
+- **Language**: Python 3.11+
+- **Database Client**: Supabase 2.0.2 (no ORM)
+- **AI Integration**: OpenAI 1.3.5
+- **Video Processing**: OpenCV 4.8.1.78
+- **Image Processing**: Pillow 10.1.0
+- **Background Jobs**: Celery 5.3.4 + Redis 5.0.1
+- **Testing**: Pytest 7.4.3
+
+#### Infrastructure
+- **Database**: Supabase PostgreSQL
+- **Storage**: Supabase Storage
+- **Deployment**: Railway / Local Development
+- **Monitoring**: Sentry (configured)
+- **Environment Management**: dotenv
+
+### 2.3 Service Boundaries
+
+| Service | Responsibility | Key Files |
+|---------|---------------|-----------|
+| Recording Service | Screen capture, chunked upload, session management | `recordingAPI.ts`, `recordings.py` |
+| Analysis Service | Frame extraction, GPT-4o integration, result parsing | `orchestrator.py`, `gpt4v_client.py` |
+| Results Service | Data visualization, report generation, export | `MinimalResultsPage.tsx`, `results.py` |
+| Insights Service | ROI calculations, automation recommendations | `roi_calculator.py`, `insights.py` |
+| Auth Service | User authentication, organization context | `AuthContext.tsx`, `auth.py` |
+
+---
+
+## 3. Frontend Architecture
+
+### 3.1 Directory Structure (Actual)
+
+```
+frontend/src/
+├── App.tsx                           # Main application shell
+├── main.tsx                          # Vite entry point
+├── index.css                         # Global styles
+├── components/
+│   ├── ErrorBoundary.tsx            # Error handling wrapper
+│   └── PrivacyModal.tsx             # Privacy settings UI
+├── contexts/
+│   └── SettingsContext.tsx          # Application settings state
+├── constants/
+│   └── settings.ts                  # Configuration constants
+├── features/
+│   ├── auth/
+│   │   ├── AuthComponent.tsx        # Authentication UI
+│   │   └── AuthContext.tsx          # Auth state management
+│   ├── recording/
+│   │   ├── components/
+│   │   │   ├── RecordingControls.tsx     # Recording UI
+│   │   │   └── ManualVideoUpload.tsx     # File upload UI
+│   │   ├── hooks/
+│   │   │   └── useScreenRecording.ts     # MediaRecorder hook
+│   │   └── services/
+│   │       ├── recordingAPI.ts           # API client
+│   │       ├── sessionPersistence.ts     # Session recovery
+│   │       └── uploadQueue.ts            # Upload management
+│   ├── analysis/
+│   │   ├── components/
+│   │   │   ├── AdvancedSettings.tsx      # Analysis config
+│   │   │   ├── AnalysisButton.tsx        # Trigger analysis
+│   │   │   ├── RecordingsList.tsx        # Session list
+│   │   │   ├── MinimalResultsPage.tsx    # Results display
+│   │   │   ├── MinimalResultsPage 2.tsx  # [DUPLICATE - needs cleanup]
+│   │   │   ├── DynamicWorkflowChart.tsx  # Flow visualization
+│   │   │   ├── NaturalAnalysisView.tsx   # Natural language view
+│   │   │   ├── ResultsPage.tsx           # Legacy results
+│   │   │   └── WorkflowAnalysis.tsx      # Analysis orchestration
+│   │   ├── hooks/
+│   │   │   └── [currently empty]
+│   │   └── services/
+│   │       ├── analysisAPI.ts            # Analysis API client
+│   │       └── drawioGenerator.ts        # Diagram generation
+│   ├── results/
+│   │   └── services/
+│   │       └── resultsAPI.ts             # Results API client
+│   └── settings/
+│       └── components/
+│           └── SettingsPage.tsx          # Settings UI
+├── lib/
+│   ├── api-client.ts                # API configuration
+│   └── supabase.ts                  # Supabase client
+└── pages/
+    ├── AnalyzingPage.tsx            # Analysis status page
+    ├── RecordPage.tsx               # Recording page
+    └── ResultsPage.tsx              # Results display page
+```
+
+### 3.2 Component Architecture
+
+#### Key Components
+
+| Component | Purpose | Location |
+|-----------|---------|----------|
+| `RecordingControls` | Main recording interface with permission handling | `features/recording/components/` |
+| `MinimalResultsPage` | 4-tab results interface (Overview, Natural, JSON, Chart) | `features/analysis/components/` |
+| `DynamicWorkflowChart` | ReactFlow-based workflow visualization | `features/analysis/components/` |
+| `RecordingsList` | Session management with status tracking | `features/analysis/components/` |
+| `AuthComponent` | Authentication with Supabase | `features/auth/` |
+
+### 3.3 State Management
+
+- **Context Providers**:
+  - `AuthContext`: User authentication state
+  - `SettingsContext`: Application settings
+- **Local State**: Component-level useState hooks
+- **Server State**: Direct API calls with loading/error states
+- **Persistence**: localStorage for session recovery
+
+### 3.4 Key Frontend Features
+
+1. **Screen Recording**:
+   - Browser MediaRecorder API at 2 FPS
+   - 5-second chunk uploads
+   - Session persistence and recovery
+   - Permission handling with retry
+
+2. **Analysis Display**:
+   - 4-tab interface for comprehensive results
+   - Interactive workflow charts with ReactFlow
+   - Natural language AI insights
+   - Raw JSON data view
+
+3. **Error Handling**:
+   - ErrorBoundary component for React errors
+   - Retry mechanisms for failed uploads
+   - User-friendly error messages
+   - Network failure recovery
+
+---
+
+## 4. Backend Architecture
+
+### 4.1 Directory Structure (Actual)
+
+```
+backend/app/
+├── main.py                          # FastAPI application
+├── api/
+│   └── v1/
+│       ├── __init__.py
+│       ├── recordings.py            # Recording endpoints
+│       ├── recordings_backup.py     # [BACKUP - needs cleanup]
+│       ├── analysis.py              # Analysis endpoints
+│       ├── results.py               # Results endpoints
+│       ├── insights.py              # Business insights
+│       └── auth.py                  # Authentication
+├── services/
+│   ├── supabase_client.py          # Supabase operations
+│   ├── workflow_utils.py           # Workflow helpers
+│   ├── analysis/
+│   │   ├── orchestrator.py         # Analysis pipeline
+│   │   ├── frame_extractor.py      # Video frame extraction
+│   │   ├── gpt4v_client.py        # GPT-4o integration
+│   │   ├── result_parser.py        # Parse AI responses
+│   │   ├── result_parser 2.py      # [DUPLICATE - needs cleanup]
+│   │   ├── prompts.py              # AI prompts
+│   │   ├── prompts 2.py            # [DUPLICATE - needs cleanup]
+│   │   └── prompts.py.backup       # [BACKUP - needs cleanup]
+│   └── insights/
+│       └── roi_calculator.py       # ROI calculations
+├── schemas/
+│   └── recording.py                # Pydantic models
+├── core/
+│   └── config.py                   # Configuration
+└── models/
+    └── __init__.py                # [Empty - no SQLAlchemy]
+```
+
+### 4.2 API Endpoints
+
+#### Recording Management
+```
+POST   /api/v1/recordings/start              # Start new recording
+POST   /api/v1/recordings/{id}/chunks        # Upload video chunk
+POST   /api/v1/recordings/{id}/complete      # Mark recording complete
+GET    /api/v1/recordings                    # List all recordings
+GET    /api/v1/recordings/{id}              # Get recording details
+DELETE /api/v1/recordings/{id}              # Delete recording
+```
+
+#### Analysis Pipeline
+```
+POST   /api/v1/analysis/{recording_id}/start # Start analysis
+GET    /api/v1/analysis/{id}/status         # Check analysis status
+GET    /api/v1/analysis/{id}/results        # Get analysis results
+```
+
+#### Results & Insights
+```
+GET    /api/v1/results/{session_id}         # Complete results
+GET    /api/v1/results/{session_id}/raw     # Raw GPT response
+GET    /api/v1/insights/dashboard           # Business insights
+GET    /api/v1/insights/roi/{recording_id}  # ROI calculations
+```
+
+#### Authentication
+```
+POST   /api/v1/auth/register                # User registration
+POST   /api/v1/auth/login                   # User login
+GET    /api/v1/auth/me                      # Current user info
+POST   /api/v1/auth/refresh                 # Refresh token
+```
+
+### 4.3 Service Layer Architecture
+
+**Pure Supabase Implementation**:
+- No SQLAlchemy ORM
+- Direct Supabase client operations
+- Native PostgreSQL features
+- Row-level security preparation
+
+**Key Services**:
+
+1. **SupabaseClient** (`supabase_client.py`):
+   - Database operations
+   - Storage management
+   - Authentication integration
+
+2. **Analysis Orchestrator** (`orchestrator.py`):
+   - Frame extraction coordination
+   - GPT-4o API calls
+   - Result storage
+
+3. **GPT4VClient** (`gpt4v_client.py`):
+   - OpenAI integration
+   - Prompt management
+   - Cost tracking
+
+---
+
+## 5. Database Design
+
+### 5.1 Current Schema (12 Tables)
+
+```sql
+-- Core Tables (with relationships)
+recording_sessions (id, user_id, title, status, duration_seconds, ...)
+video_chunks (id, session_id, chunk_index, file_path, upload_status, ...)
+analysis_results (id, session_id, status, gpt_version, raw_gpt_response, ...)
+automation_opportunities (id, analysis_id, opportunity_type, roi_percentage, ...)
+workflow_insights (id, session_id, insight_type, confidence_score, ...)
+workflow_visualizations (id, analysis_id, flow_data, ...)
+cost_analyses (id, analysis_id, current_monthly_cost, roi_percentage, ...)
+generated_reports (id, analysis_id, report_type, file_url, ...)
+
+-- Organization & User Management
+organizations (id, name, domain, subscription_tier, ...)
+user_profiles (id, organization_id, first_name, role, ...)
+
+-- Business Intelligence
+leads (id, email, company, source, ...)
+use_cases (id, title, description, type, ...)
+```
+
+### 5.2 Multi-Tenant Architecture
+
+**Current Implementation**:
+- `organization_id` columns added via migrations
+- Application-level filtering
+- User-organization relationships
+- RLS policies in migration files (not yet applied)
+
+**Data Isolation Strategy**:
+```sql
+-- Example: Recording sessions filtered by organization
+SELECT rs.* FROM recording_sessions rs
+JOIN user_profiles up ON rs.user_id = up.id
+WHERE up.organization_id = :current_org_id
+```
+
+### 5.3 Key Database Features
+
+- **UUID Primary Keys**: Distributed architecture ready
+- **JSONB Columns**: Flexible metadata storage
+- **Indexes**: On user_id, organization_id, status, created_at
+- **Timestamps**: With timezone support
+- **Audit Fields**: created_at, updated_at on all tables
+
+---
+
+## 6. AI Integration
+
+### 6.1 GPT-4o Configuration (Actual)
+
+```python
+# From .env and config.py
+GPT4V_MODEL = "gpt-4o"                    # Current model
+MAX_TOKENS_PER_REQUEST = 2500             # Token limit
+GPT4V_TEMPERATURE = 0.3                   # Low for consistency
+GPT4V_IMAGE_DETAIL = "high"               # Image quality
+COST_PER_GPT4V_REQUEST = 0.01            # Cost estimation
+```
+
+### 6.2 Frame Extraction Pipeline
+
+**Current Implementation**:
+- **Extraction Rate**: 1 FPS (frames per second)
+- **Max Frames**: 120 per analysis
+- **Frame Selection**: Time-based intervals
+- **Cost Optimization**: ~$0.10-0.60 per analysis
+
+```python
+# From frame_extractor.py
+frames_per_second = 1.0  # Fixed at 1 FPS
+interval_seconds = 1.0 / frames_per_second
+target_frames = min(max_frames, int(duration_seconds * frames_per_second))
+```
+
+### 6.3 Analysis Workflow
+
+```
+Recording Complete
+    ↓
+Frame Extraction (1 FPS)
+    ↓
+Batch Processing (5-10 frames)
+    ↓
+GPT-4o Analysis
+    ↓
+Result Parsing
+    ↓
+Database Storage
+    ↓
+Frontend Display
+```
+
+### 6.4 Prompt Engineering
+
+**Focus Areas**:
+1. Email → WMS data entry patterns
+2. Repetitive copy-paste operations
+3. Manual Excel report generation
+4. System navigation inefficiencies
+
+**Output Requirements**:
+- Structured JSON response
+- Workflow steps identification
+- Time estimates per activity
+- ROI potential scoring
+- Automation recommendations
+
+---
+
+## 7. Infrastructure & Deployment
+
+### 7.1 Environment Configuration
+
+#### Development (.env)
+```bash
+# Core Settings
+APP_ENV=development
+DEBUG=true
+
+# Supabase
+SUPABASE_URL=https://klhmxzuvfzodmcotsezy.supabase.co
+SUPABASE_SERVICE_KEY=[service_key]
+SUPABASE_ANON_KEY=[anon_key]
+
+# OpenAI
+OPENAI_API_KEY=sk-proj-[key]
+GPT4V_MODEL=gpt-4o
+GPT4V_IMAGE_DETAIL=high
+
+# CORS
+CORS_ORIGINS=http://localhost:5173,http://localhost:3000
+
+# Monitoring
+SENTRY_DSN=[dsn_url]
+```
+
+### 7.2 Deployment Commands
+
+```bash
+# Quick Start (Development)
+./start-dev.sh
+
+# Manual Start
+# Backend
+cd backend && source venv/bin/activate && python -m app.main
+
+# Frontend
+cd frontend && npm run dev
+
+# Access Points
+Frontend: http://localhost:5173
+Backend: http://localhost:8000
+API Docs: http://localhost:8000/docs
+```
+
+### 7.3 Security Implementation
+
+- **Authentication**: Supabase Auth with JWT
+- **Multi-tenant**: Organization-based isolation
+- **HTTPS**: Enforced in production
+- **CORS**: Configured origins only
+- **Rate Limiting**: API-level protection
+- **Input Validation**: Pydantic schemas
+
+---
+
+## 8. Development Guide
+
+### 8.1 Quick Start
+
+```bash
+# Clone repository
+git clone [repo_url]
+cd NSAI_MVP
+
+# Setup backend
+cd backend
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env  # Configure environment
+
+# Setup frontend
+cd ../frontend
+npm install
+cp .env.example .env  # Configure environment
+
+# Run development
+cd ..
+./start-dev.sh
+```
+
+### 8.2 Common Commands
+
+#### Backend
+```bash
+# Run tests
+cd backend && python -m pytest tests/
+
+# Run specific test
+python -m pytest tests/test_unit.py -v
+
+# Check GPT-4V configuration
+python tests/test_services/test_gpt4v_client_config.py
+```
+
+#### Frontend
+```bash
+# Development server
+npm run dev
+
+# Build for production
+npm run build
+
+# Lint code
+npm run lint
+
+# Preview production build
+npm run preview
+```
+
+### 8.3 Database Operations
+
+```sql
+-- Apply migrations in Supabase SQL editor (order matters):
+-- 1. database/supabase_migration_004_bulletproof.sql
+-- 2. database/supabase_migration_005_complete_multitenant.sql
+
+-- Or use complete schema:
+-- database/current-schema.sql
+```
+
+### 8.4 Testing Strategy
+
+- **Unit Tests**: Core business logic
+- **Integration Tests**: API endpoints
+- **E2E Tests**: Recording → Analysis flow
+- **Manual Testing**: UI workflows
+
+---
+
+## 9. Known Issues & Technical Debt
+
+### 9.1 Current Issues
+
+1. **Duplicate Files**:
+   - `MinimalResultsPage 2.tsx`
+   - `prompts 2.py`, `prompts.py.backup`
+   - `result_parser 2.py`
+   - Need cleanup and consolidation
+
+2. **RLS Implementation**:
+   - RLS policies exist in migration files
+   - Not yet applied to production database
+   - Currently using application-level filtering
+
+3. **Performance**:
+   - Large video files may timeout
+   - Frame extraction can be memory-intensive
+   - Need optimization for concurrent analyses
+
+### 9.2 Technical Debt
+
+- Remove SQLAlchemy references completely
+- Consolidate duplicate components
+- Implement proper RLS policies
+- Add comprehensive test coverage
+- Document API endpoints in OpenAPI
+
+
+---
+
+## Appendices
+
+### A. Configuration Reference
+
+See `/backend/app/core/config.py` for all configuration options.
+
+### B. API Documentation
+
+Interactive API docs available at `http://localhost:8000/docs` when running locally.
+
+### C. Database Migrations
+
+All migrations in `/database/` directory:
+- `supabase_migration_004_bulletproof.sql` - Adds organization_id columns
+- `supabase_migration_005_complete_multitenant.sql` - Multi-tenant support
+- `current-schema.sql` - Complete current schema
+
+### D. Environment Variables
+
+Required environment variables documented in:
+- `/backend/.env.example`
+- `/frontend/.env.example`
+
+### E. Monitoring
+
+- **Sentry**: Error tracking configured
+- **Logs**: Application logs in `backend/server.log`
+- **Health Check**: `GET /health` endpoint
+
+---
+
+## Document Maintenance
+
+This is a living document. Please update it when:
+- Adding new features or services
+- Changing architecture patterns
+- Updating dependencies
+- Fixing known issues
+- Modifying database schema
+
+**Last Major Update**: January 2025  
+**Maintained By**: Development Team  
+**Review Frequency**: Monthly
