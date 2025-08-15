@@ -1,3 +1,0 @@
-"""
-NewSystem.AI Test Suite
-"""
