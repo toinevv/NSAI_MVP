@@ -1,0 +1,19 @@
+chore(release): MVP snapshot (16 Aug) — POC complete, moving to deployable build
+
+Summary:
+- Proof-of-concept complete: Recording → Analysis (GPT-4o) → Results working end-to-end
+- Native Supabase foundation with multi-tenant RLS ready
+- Demo video recorded; beginning deployment hardening and production polish
+
+Scope (aligned with OVERARCHING_PLAN.md):
+- Auth-first with Supabase JWT + org context
+- Application-level multi-tenant filtering; RLS policies drafted
+- API paths converted to Supabase client usage (recordings, analysis, results)
+
+Validation (from DATA_PIPELINE_VALIDATION_REPORT.md):
+- Full pipeline verified; raw and structured analysis persisted
+- Automation opportunities entries created from parsed results
+- Frontend Results (4 tabs) wired: Overview, Natural, Raw JSON, Workflow Chart
+
+Notes:
+- Tagging this exact state as 'mvp-16-aug' for rollback and reference.
